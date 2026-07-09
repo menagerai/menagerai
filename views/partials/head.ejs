@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+  <title><%= typeof title !== 'undefined' ? title : t('nav.brand') %></title>
+  <style>
+    :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg);
+           /* Stop mobile Safari/Chrome from auto-inflating text by content size,
+              which otherwise renders the same column at different font sizes. */
+           -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; height:var(--topbar-h); padding:0 20px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:40; }
+    .topbar .brand { font-weight:700; }
+    .topbar nav { display:flex; align-items:center; gap:10px; }
+    .topbar nav a { margin-left:0; }
+    /* Top-bar dropdowns (language + account). Built on <details> so they work
+       without JS; foot.ejs adds click-outside-to-close. Only the current value
+       shows; options/actions live in the panel to keep the bar compact. */
+    .menu { position:relative; }
+    .menu > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+            padding:4px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--fg);
+            font-size:13px; white-space:nowrap; }
+    .menu > summary::-webkit-details-marker { display:none; }
+    .menu > summary:hover, .menu[open] > summary { background:var(--bg); }
+    .menu .caret { font-size:10px; color:var(--muted); }
+    .menu-panel { position:absolute; right:0; top:calc(100% + 6px); min-width:184px; background:#fff;
+            border:1px solid var(--line); border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.14);
+            padding:6px; z-index:50; }
+    .menu-panel a, .menu-panel .menu-item { display:block; padding:8px 10px; border-radius:6px; color:var(--fg); }
+    .menu-panel a:hover { background:var(--bg); text-decoration:none; }
+    .lang-panel a.on { background:var(--accent); color:#fff; }
+    /* Account dropdown: the signed-in identity sits above the logout action. */
+    .account-menu .avatar { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+            border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:600; flex:0 0 auto; }
+    .account-menu .who { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .account-panel .acct { padding:8px 10px 10px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+    .account-panel .acct-name { font-weight:600; }
+    .account-panel .acct-email { font-size:12px; word-break:break-all; }
+    .account-panel .logout { color:var(--danger); }
+    .account-panel .logout:hover { background:#fef2f2; }
+    @media (max-width:767px) { .account-menu .who { display:none; } }
+    .wrap { max-width:960px; margin:28px auto; padding:0 20px; }
+    /* Wider, still-centered column for content that benefits from horizontal room
+       (the dashboard lays heatmap cards two-up on large screens). Sized to exactly
+       two cards + gap + the wrap's own padding, so margin:auto centers it like any
+       other page rather than letting content hug the left. --card-w comes from the
+       page (set inline on the wrap). */
+    .wrap.wide { max-width:calc(2 * var(--card-w, 760px) + 56px); }
+    /* "Admin panel" toggle — present for admins (body.has-sidebar). Fixed to the
+       top-right of the viewport, just below the top bar, so it sits at the
+       screen's right edge (not the centered content column) and lines up with
+       the panel that slides in from the right. Hidden while the panel is open —
+       the panel carries its own × close, and the two would otherwise overlap. */
+    .nav-toggle { display:none; position:fixed; top:calc(var(--topbar-h) + 10px); right:16px; z-index:30; background:#fff; border:1px solid var(--line); border-radius:6px; padding:2px 9px; font-size:18px; line-height:1.3; cursor:pointer; }
+    body.has-sidebar .nav-toggle { display:inline-flex; align-items:center; gap:6px; }
+    body.has-sidebar.nav-open .nav-toggle { display:none; }
+    .nav-toggle .label { font-size:13px; }
+    /* Admin panel layout: content + right-hand sidebar, below the sticky topbar.
+       The sidebar is hidden by default and revealed (nav-open) via the toggle.
+       order:2 places it after the main content so it sits on the right. */
+    .layout { display:flex; align-items:stretch; min-height:calc(100vh - var(--topbar-h)); }
+    .sidebar { display:none; order:2; flex:0 0 220px; width:220px; background:#fff; border-left:1px solid var(--line); padding:14px 10px; }
+    /* Close (×) in the panel's top-right so it can be dismissed from inside,
+       since the open panel can cover the toggle that opened it. */
+    .nav-close { position:absolute; top:8px; right:8px; width:28px; height:28px; display:inline-flex;
+            align-items:center; justify-content:center; background:none; border:1px solid var(--line);
+            border-radius:6px; font-size:18px; line-height:1; color:var(--muted); cursor:pointer; padding:0; }
+    .nav-close:hover { background:var(--bg); color:var(--fg); }
+    /* When open, the panel overlays the content as an off-canvas drawer from the
+       right at every width, so it never pushes the main content aside. The
+       toggle/× collapse it; nav-close (absolute) anchors to this fixed box. */
+    body.nav-open .sidebar { display:block; position:fixed; top:var(--topbar-h); right:0; left:auto; bottom:0;
+            z-index:35; width:250px; box-shadow:-2px 0 14px rgba(0,0,0,.14); overflow-y:auto; }
+    .sidebar nav a { display:block; padding:8px 12px; border-radius:6px; color:var(--fg); margin-left:0; }
+    .sidebar nav a:hover { background:var(--bg); text-decoration:none; }
+    .sidebar nav a.active { background:var(--accent); color:#fff; }
+    .sidebar .sec { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:14px 12px 4px; }
+    .sidebar .sec:first-child { margin-top:2px; }
+    .main { flex:1 1 auto; min-width:0; }
+    @media (max-width:767px) {
+      .main .wrap { margin:18px auto; }
+    }
+    .muted { color:var(--muted); }
+    /* "This device" pill next to the current session on the profile page. */
+    .badge-current { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:9px; font-size:11px;
+            font-weight:600; background:#ecfdf5; color:#065f46; border:1px solid #10b981; vertical-align:middle; }
+    /* "API" tag on audit rows whose action was triggered via an API key. */
+    .badge-api { display:inline-block; margin-left:6px; padding:0 6px; border-radius:9px; font-size:10px;
+            font-weight:700; letter-spacing:.03em; background:#eef2ff; color:#3730a3; border:1px solid #6366f1;
+            vertical-align:middle; cursor:help; }
+    /* Day-window pill next to each dashboard activity-score number — same pill as
+       the audit "API" badge. */
+    .badge-window { display:inline-block; margin-left:4px; padding:0 6px; border-radius:9px; font-size:10px;
+            font-weight:700; letter-spacing:.03em; background:#eef2ff; color:#3730a3; border:1px solid #6366f1;
+            vertical-align:middle; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+    .app-tile { display:block; background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
+    .app-tile:hover { border-color:var(--accent); text-decoration:none; }
+    .app-tile .role { font-size:12px; color:var(--muted); }
+    .app-tile .desc { margin-top:4px; font-size:13px; color:var(--muted); line-height:1.4; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+    /* Wrap a wide table so it scrolls horizontally WITHIN its column instead of
+       stretching the page and breaking the sidebar/topbar layout. */
+    .table-scroll { overflow-x:auto; max-width:100%; }
+    .table-scroll table { min-width:100%; width:auto; }
+    .table-scroll th, .table-scroll td { white-space:nowrap; }
+    /* JSON detail cell: one consistent monospace size, truncated with an ellipsis.
+       Hover shows the full value via the native title; tap/click toggles .open to
+       reveal it wrapped in place (a CSS tooltip would be clipped by the
+       .table-scroll overflow container, so we expand inline instead). */
+    .table-scroll td .detail { display:inline-block; max-width:60ch; overflow:hidden; text-overflow:ellipsis;
+            vertical-align:bottom; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+            font-size:12px; cursor:pointer; }
+    .table-scroll td .detail.open { max-width:min(80vw,640px); overflow:visible; white-space:normal; word-break:break-word; }
+    /* A field's width attribute/inline width states how much it should hold, but
+       it must never extend past its container on narrow screens — cap it. */
+    input,select,textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; max-width:100%; }
+    button, .btn { font:inherit; padding:6px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
+    button.primary, .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    button.danger { color:var(--danger); border-color:var(--danger); }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    /* Page header: title with a primary action right beside it. The action sits
+       next to the title (not pushed to the far right, where it would collide
+       with the fixed admin-panel toggle on mobile); it wraps below on very
+       narrow screens. Always keeps a gap above the content that follows. */
+    .page-head { display:flex; align-items:center; gap:10px 12px; flex-wrap:wrap; margin:0 0 16px; }
+    .page-head h1 { margin:0; }
+    /* Secondary page actions on their own row beneath the title/primary action,
+       so they never crowd the header (or the fixed admin-panel toggle) on mobile. */
+    .page-actions { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+    /* Search bar: the field flexes to fill the row (min-width:0 lets it shrink
+       on mobile instead of shoving the button off-screen) and the button keeps
+       its full label on one line. */
+    .search-form { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+    .search-form input { flex:1 1 auto; min-width:0; }
+    /* Keep the icon + label together and give the button a floor width so its
+       label is always visible (never squeezed away) next to the flexing field. */
+    .search-form button { flex:0 0 auto; white-space:nowrap; display:inline-flex; align-items:center;
+            gap:6px; min-width:88px; justify-content:center; }
+    .search-form button svg { flex:0 0 auto; }
+    /* Action cells: each button gets its own fixed-width column so neighbours
+       don't shift when a label changes width (e.g. Enable vs Disable). */
+    td.act { width:1%; white-space:nowrap; padding:10px; }
+    td.act button, td.act .btn { min-width:96px; text-align:center; }
+    .actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0; }
+    /* GitHub-style activity heatmap: week columns of 7 day cells. */
+    .heatmap { display:flex; gap:3px; justify-content:center; overflow-x:auto; padding:4px 0; }
+    .hm-col { display:flex; flex-direction:column; gap:3px; }
+    .hm-cell { width:11px; height:11px; border-radius:2px; background:#ebedf0; display:inline-block; }
+    .hm-cell.empty { background:transparent; }
+    .hm-cell.l0 { background:#ebedf0; }
+    .hm-cell.l1 { background:#9be9a8; }
+    .hm-cell.l2 { background:#40c463; }
+    .hm-cell.l3 { background:#30a14e; }
+    .hm-cell.l4 { background:#216e39; }
+    .hm-legend { display:flex; gap:4px; align-items:center; justify-content:center; font-size:12px; margin-top:6px; }
+    /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
+       the heatmap's real column count) is exactly the width one full-window
+       heatmap needs; the centered .wrap.wide is two of those wide. The grid fits
+       as many card-w columns as the column allows — two when two whole heatmaps
+       genuinely fit, one otherwise. Cards never shrink below card-w, so the
+       heatmap's own overflow-x scroll engages only on a lone narrow column (small
+       screens). No breakpoints — it adapts to the rendered content. */
+    .dash-grid { display:grid; gap:14px;
+            grid-template-columns:repeat(auto-fit, minmax(min(100%, var(--card-w, 760px)), 1fr)); }
+    .dash-card { margin-bottom:0; min-width:0; }
+    /* Title row then a left-aligned activity-score row, above the centered heatmap
+       (cards can be wider than one map — the heatmap stays centered, matching the
+       individual app/user pages). */
+    .dash-card-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:2px; }
+    .dash-card-head a { font-weight:600; }
+    .dash-card-head code { font-size:12px; }
+    .dash-score { font-size:12px; margin:0 0 8px; }
+    .dash-legend { justify-content:flex-start; margin:0 0 10px; }
+    h1 { font-size:20px; margin:0 0 4px; }
+    h2 { font-size:16px; margin:18px 0 8px; }
+    code { background:#f3f4f6; padding:1px 5px; border-radius:4px; }
+    /* Inline help tooltip: hover or keyboard-focus the ⓘ to reveal --tip. */
+    .info { position:relative; display:inline-block; width:15px; height:15px; line-height:15px; text-align:center;
+            font-size:11px; font-style:normal; color:var(--muted); border:1px solid var(--line); border-radius:50%;
+            cursor:help; user-select:none; vertical-align:middle; margin-left:4px; }
+    .info:hover, .info:focus { color:#fff; background:var(--accent); border-color:var(--accent); outline:none; }
+    .info::after { content:attr(data-tip); position:absolute; left:50%; bottom:130%; transform:translateX(-50%);
+            white-space:normal; width:max-content; max-width:280px; background:#111827; color:#fff; text-align:left;
+            font-size:12px; line-height:1.45; padding:7px 9px; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.18);
+            opacity:0; visibility:hidden; transition:opacity .12s; z-index:20; pointer-events:none; }
+    .info:hover::after, .info:focus::after { opacity:1; visibility:visible; }
+    /* Toasts: transient, color-keyed confirmations injected by foot.ejs from the
+       flash query params, fixed top-center below the topbar, auto-dismiss ~5s. */
+    .toast-wrap { position:fixed; top:calc(var(--topbar-h) + 12px); left:50%; transform:translateX(-50%); z-index:60;
+            display:flex; flex-direction:column; gap:8px; max-width:360px; }
+    .toast { display:flex; align-items:flex-start; gap:8px; padding:11px 13px; border-radius:8px;
+            border:1px solid; box-shadow:0 6px 20px rgba(0,0,0,.12); font-size:13px; line-height:1.45;
+            background:#fff; animation:toastIn .18s ease-out; }
+    .toast.success { background:#ecfdf5; border-color:#10b981; color:#065f46; }
+    .toast.warning { background:#fffbeb; border-color:#f59e0b; color:#92400e; }
+    .toast.error   { background:#fef2f2; border-color:#ef4444; color:#991b1b; }
+    .toast .ico { font-weight:700; }
+    .toast .close { margin-left:auto; background:none; border:none; color:inherit; cursor:pointer;
+            font-size:16px; line-height:1; padding:0 2px; opacity:.65; }
+    .toast .close:hover { opacity:1; }
+    .toast.hide { opacity:0; transform:translateY(-6px); transition:opacity .25s, transform .25s; }
+    @keyframes toastIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+    @media (max-width:767px) { .toast-wrap { width:calc(100% - 24px); max-width:none; } }
+    /* Loading toast: a lightweight spinner shown in the same slot as the flash
+       toasts while a navigation/submit is in flight, so a multi-second backend
+       op never feels like a stall. Built from the toast family so it reads the
+       same; the result toast lands in the very spot once the next page loads. */
+    .toast.loading { color:var(--muted); }
+    .toast .spinner { width:15px; height:15px; flex:0 0 auto; border-radius:50%;
+            border:2px solid var(--line); border-top-color:var(--accent); animation:spin360 .6s linear infinite; }
+    @keyframes spin360 { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .toast .spinner { animation:spinPulse 1s ease-in-out infinite; }
+    }
+    @keyframes spinPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  </style>
+</head>
+<% var _hasSidebar = (typeof isAdmin !== 'undefined' && isAdmin); %>
+<% var _ap = (typeof activePath !== 'undefined' && activePath) ? activePath : ''; %>
+<% var _lang = (typeof lang !== 'undefined' && lang) ? lang : 'en'; %>
+<% var _who = (typeof user !== 'undefined' && user) ? (user.name || user.email || '') : ''; %>
+<% var _wide = (typeof wide !== 'undefined' && wide); %>
+<% var _wrapStyle = (typeof wrapStyle !== 'undefined' && wrapStyle) ? wrapStyle : ''; %>
+<% var _initial = (_who.trim().charAt(0) || '?').toUpperCase(); %>
+<body class="<%= _hasSidebar ? 'has-sidebar' : '' %>">
+  <div class="topbar">
+    <div class="brand"><a href="/"><%= t('nav.brand') %></a></div>
+    <nav>
+      <details class="menu lang-menu">
+        <summary aria-label="Language"><%= _lang === 'zh' ? '中文' : 'EN' %><span class="caret">▾</span></summary>
+        <div class="menu-panel lang-panel">
+          <a href="/set-lang?lang=en" class="<%= _lang === 'en' ? 'on' : '' %>">EN</a>
+          <a href="/set-lang?lang=zh" class="<%= _lang === 'zh' ? 'on' : '' %>">中文</a>
+        </div>
+      </details>
+      <% if (typeof user !== 'undefined' && user) { %>
+        <details class="menu account-menu">
+          <summary aria-label="Account menu">
+            <span class="avatar"><%= _initial %></span>
+            <span class="who"><%= _who %></span>
+            <span class="caret">▾</span>
+          </summary>
+          <div class="menu-panel account-panel">
+            <div class="acct">
+              <% if (user.name) { %><div class="acct-name"><%= user.name %></div><% } %>
+              <div class="acct-email muted"><%= user.email %></div>
+            </div>
+            <a href="/profile" class="menu-item"><%= t('nav.profile') %></a>
+            <a href="/logout" class="menu-item logout"><%= t('nav.signOut') %></a>
+          </div>
+        </details>
+      <% } %>
+    </nav>
+  </div>
+  <% if (_hasSidebar) { %>
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <button class="nav-close" id="navClose" type="button" aria-label="<%= t('nav.adminPanel') %>" aria-controls="sidebar">×</button>
+        <nav>
+          <div class="sec"><%= t('sidebar.admin') %></div>
+          <a href="/admin/dashboard" class="<%= _ap.indexOf('/admin/dashboard') === 0 ? 'active' : '' %>"><%= t('sidebar.dashboard') %></a>
+          <a href="/admin/users" class="<%= _ap.indexOf('/admin/users') === 0 ? 'active' : '' %>"><%= t('sidebar.users') %></a>
+          <a href="/admin/roles" class="<%= _ap.indexOf('/admin/roles') === 0 ? 'active' : '' %>"><%= t('sidebar.roles') %></a>
+          <a href="/admin/apps" class="<%= _ap.indexOf('/admin/apps') === 0 ? 'active' : '' %>"><%= t('sidebar.apps') %></a>
+          <a href="/admin/email-rules" class="<%= _ap.indexOf('/admin/email-rules') === 0 ? 'active' : '' %>"><%= t('sidebar.emailRules') %></a>
+          <a href="/admin/api-keys" class="<%= _ap.indexOf('/admin/api-keys') === 0 ? 'active' : '' %>"><%= t('sidebar.apiKeys') %></a>
+          <%# Audit log stays the LAST item — add any new sections ABOVE this line. %>
+          <a href="/admin/audit" class="<%= _ap.indexOf('/admin/audit') === 0 ? 'active' : '' %>"><%= t('sidebar.auditLog') %></a>
+        </nav>
+      </aside>
+      <main class="main"><div class="wrap<%= _wide ? ' wide' : '' %>"<%- _wrapStyle ? (' style="' + _wrapStyle + '"') : '' %>>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle admin panel" aria-controls="sidebar" aria-expanded="false">☰<span class="label"><%= t('nav.adminPanel') %></span></button>
+  <% } else { %>
+    <div class="wrap<%= _wide ? ' wide' : '' %>"<%- _wrapStyle ? (' style="' + _wrapStyle + '"') : '' %>>
+  <% } %>

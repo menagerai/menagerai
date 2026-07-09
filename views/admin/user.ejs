@@ -1,0 +1,96 @@
+<%- include('../partials/head', { title: target.email, user, isAdmin }) %>
+
+<p><a href="/admin/users"><%= t('user.back') %></a></p>
+<h1><%= target.email %>
+  <% if (isSuperadmin) { %><span class="muted" style="font-size:13px; font-weight:400"><%= t('user.superadminProtected') %></span><% } %>
+</h1>
+<div class="actions">
+  <% if (target.status === 'disabled') { %>
+    <form method="post" action="/admin/users/<%= target._id %>/enable"><button class="primary"><%= t('common.enable') %></button></form>
+  <% } else if (!isSuperadmin) { %>
+    <form method="post" action="/admin/users/<%= target._id %>/disable" data-confirm="<%= t('user.disableConfirm') %>"><button class="danger"><%= t('common.disable') %></button></form>
+  <% } %>
+  <% if (!isSuperadmin) { %>
+    <form method="post" action="/admin/users/<%= target._id %>/delete" data-confirm="<%= t('user.deleteConfirm') %>"><button class="danger"><%= t('common.delete') %></button></form>
+  <% } %>
+</div>
+
+<div class="card">
+  <div class="muted"><%= t('user.status') %>: <strong><%= target.status %></strong>
+   · <%= t('user.logto') %>: <%= target.logto_user_id ? t('user.linked') : t('user.notLinked') %>
+   · <%= t('user.lastLogin') %>: <%= fmtTime(target.last_login_at) %></div>
+</div>
+
+<h2><%= t('user.profile') %></h2>
+<form class="card" method="post" action="/admin/users/<%= target._id %>/profile">
+  <p><label><%= t('user.name') %><br /><input name="name" value="<%= target.name || '' %>" style="width:320px" /></label></p>
+  <p><label><%= t('user.department') %><br /><input name="department" value="<%= target.department || '' %>" style="width:320px" /></label></p>
+  <p><label><%= t('user.email') %><br /><input value="<%= target.email %>" style="width:320px" disabled /></label>
+    <%- include('../partials/info', { tip: t('user.emailImmutableTip') }) %>
+  </p>
+  <p><button class="primary"><%= t('user.saveProfile') %></button></p>
+</form>
+
+<h2><%= t('user.organizationalRoles') %></h2>
+<form class="card" method="post" action="/admin/users/<%= target._id %>/roles">
+  <% roles.forEach(function(r){ %>
+    <label style="display:block"><input type="checkbox" name="roles" value="<%= r.key %>" <%= (target.roles||[]).includes(r.key) ? 'checked' : '' %> /> <%= r.name %> <code><%= r.key %></code></label>
+  <% }) %>
+  <p><button class="primary"><%= t('user.saveRoles') %></button></p>
+</form>
+
+<h2><%= t('user.overridesTitle') %></h2>
+<div class="card">
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th><%= t('user.colApp') %></th><th><%= t('user.colEffect') %></th><th><%= t('user.colReason') %></th><th></th></tr></thead>
+    <tbody>
+      <% (target.app_overrides||[]).forEach(function(o){ %>
+        <tr>
+          <td><%= o.app %></td><td><%= o.effect %></td><td><%= o.reason || '' %></td>
+          <td><form method="post" action="/admin/users/<%= target._id %>/overrides/delete"><input type="hidden" name="app" value="<%= o.app %>"><button class="danger"><%= t('common.remove') %></button></form></td>
+        </tr>
+      <% }) %>
+      <% if ((target.app_overrides||[]).length === 0) { %><tr><td colspan="4" class="muted"><%= t('common.none') %></td></tr><% } %>
+    </tbody>
+  </table>
+  </div>
+  <form class="row" method="post" action="/admin/users/<%= target._id %>/overrides" style="margin-top:10px;">
+    <select name="app"><% apps.forEach(function(a){ %><option value="<%= a.key %>"><%= a.key %></option><% }) %></select>
+    <select name="effect"><option value="allow">allow</option><option value="deny">deny</option></select>
+    <input name="reason" placeholder="<%= t('user.reasonPlaceholder') %>" />
+    <button class="primary"><%= t('user.addOverride') %></button>
+  </form>
+  <p class="muted"><%= t('user.overrideHint') %></p>
+</div>
+
+<h2><%= t('user.activity') %></h2>
+<%- include('../partials/heatmap', { heatmap, heatmapDays }) %>
+
+<h2><%= t('user.appsUsedMost') %></h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('user.colApp') %></th><th><%= t('user.colActiveDays') %></th><th><%= t('user.colLastUsed') %></th></tr></thead>
+  <tbody>
+    <% topApps.forEach(function(a){ %>
+      <tr><td><code><%= a.app_key %></code></td><td><%= a.days %></td>
+          <td><%= fmtTime(a.last) %></td></tr>
+    <% }) %>
+    <% if (topApps.length === 0) { %><tr><td colspan="3" class="muted"><%= t('user.noUsage') %></td></tr><% } %>
+  </tbody>
+</table>
+</div>
+
+<h2><%= t('user.accessPreview') %></h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('user.colApp') %></th><th><%= t('user.colAccess') %></th></tr></thead>
+  <tbody>
+    <% access.forEach(function(a){ %>
+      <tr><td><%= a.app %></td><td><%= a.allowed ? '✓' : '—' %></td></tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<%- include('../partials/foot') %>

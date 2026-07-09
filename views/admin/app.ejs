@@ -1,0 +1,78 @@
+<%- include('../partials/head', { title: app.key, user, isAdmin }) %>
+
+<p><a href="/admin/apps"><%= t('app.back') %></a></p>
+<h1><%= app.name %> <code><%= app.key %></code></h1>
+
+<div class="card">
+  <div class="muted"><%= t('app.basePath') %>: <code><%= app.base_path %></code> · <%= t('app.authMode') %>: <%= app.auth_mode %></div>
+  <p><%= t('app.proxySecretLabel') %></p>
+  <p><code id="secret" style="user-select:all"><%= app.proxy_secret %></code></p>
+  <form method="post" action="/admin/apps/<%= app.key %>/regenerate-secret" data-confirm="<%= t('app.regenerateConfirm') %>">
+    <button class="danger"><%= t('app.regenerate') %></button>
+  </form>
+</div>
+
+<h2><%= t('app.configuration') %></h2>
+<form class="card" method="post" action="/admin/apps/<%= app.key %>">
+  <p><label><%= t('app.name') %><br /><input name="name" value="<%= app.name %>" style="width:320px" /></label></p>
+  <p><label><%= t('app.description') %><br /><input name="description" value="<%= app.description || '' %>" style="width:420px" /></label></p>
+  <p><label><%= t('app.status') %>
+    <select name="status">
+      <% ['active','disabled','planned'].forEach(function(s){ %><option value="<%= s %>" <%= app.status===s?'selected':'' %>><%= t('common.status.' + s) %></option><% }) %>
+    </select></label>
+  </p>
+  <p><label><%= t('app.defaultUrl') %>
+    <%- include('../partials/info', { tip: t('app.defaultUrlTip') }) %>
+    <br />
+    <select name="default_base_url">
+      <option value="" <%= !app.default_base_url ? 'selected' : '' %>><%= t('app.defaultUrlUnset') %></option>
+      <% defaultBaseUrls.forEach(function(u){ %><option value="<%= u %>" <%= app.default_base_url===u?'selected':'' %>><%= u %></option><% }) %>
+    </select></label>
+  </p>
+  <p class="muted"><%= t('app.accessNote') %></p>
+  <p><label><%= t('app.publicPathsLabel') %>
+    <%- include('../partials/info', { tip: t('app.publicPathsTip') }) %>
+    <br />
+    <textarea name="public_paths" rows="5" style="width:100%; font-family:monospace"><%= JSON.stringify(app.public_paths, null, 2) %></textarea></label></p>
+  <p><button class="primary"><%= t('app.saveConfig') %></button></p>
+</form>
+
+<h2><%= t('app.renameKey') %></h2>
+<form class="card row" method="post" action="/admin/apps/<%= app.key %>/rename" data-confirm="<%= t('app.renameConfirm', { key: app.key }) %>">
+  <label><%= t('app.renameKey') %>
+    <%- include('../partials/info', { tip: t('app.newKeyTip') }) %>
+    <input name="new_key" value="<%= app.key %>" pattern="[a-z0-9][a-z0-9_-]{0,63}" title="<%= t('app.newKeyTip') %>" required />
+  </label>
+  <button class="danger"><%= t('app.renameKeyBtn') %></button>
+</form>
+<p class="muted"><%= t('app.deployWarning') %></p>
+
+<h2><%= t('app.activity') %></h2>
+<%- include('../partials/heatmap', { heatmap, heatmapDays }) %>
+
+<h2><%= t('app.powerUsers') %></h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('app.colUser') %></th><th><%= t('app.colActiveDays') %></th><th><%= t('app.colLastUsed') %></th></tr></thead>
+  <tbody>
+    <% topUsers.forEach(function(u){ %>
+      <tr><td><%= u.email %></td><td><%= u.days %></td>
+          <td><%= fmtTime(u.last) %></td></tr>
+    <% }) %>
+    <% if (topUsers.length === 0) { %><tr><td colspan="3" class="muted"><%= t('app.noUsage') %></td></tr><% } %>
+  </tbody>
+</table>
+</div>
+
+<h2><%= t('app.whoCanAccess') %></h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('app.colUser') %></th></tr></thead>
+  <tbody>
+    <% access.forEach(function(a){ %><tr><td><%= a.email %></td></tr><% }) %>
+    <% if (access.length === 0) { %><tr><td class="muted"><%= t('common.noneYet') %></td></tr><% } %>
+  </tbody>
+</table>
+</div>
+
+<%- include('../partials/foot') %>

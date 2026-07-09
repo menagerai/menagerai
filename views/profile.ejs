@@ -1,0 +1,49 @@
+<%- include('partials/head', { title: t('profile.title'), user, isAdmin }) %>
+
+<h1><%= t('profile.title') %></h1>
+<p class="muted"><%= t('profile.intro') %></p>
+
+<div class="card">
+  <h2><%= t('profile.sessionsTitle') %></h2>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th><%= t('profile.colDevice') %></th>
+        <th><%= t('profile.colIp') %></th>
+        <th><%= t('profile.colSignedIn') %></th>
+        <th><%= t('profile.colLastActive') %></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% sessions.forEach(function(s){ %>
+        <tr>
+          <td>
+            <%= s.device %>
+            <% if (s.isCurrent) { %><span class="badge-current"><%= t('profile.thisDevice') %></span><% } %>
+            <% if (s.userAgent) { %><br /><span class="detail muted" tabindex="0" title="<%= s.userAgent %>"><%= s.userAgent %></span><% } %>
+          </td>
+          <td><%= s.ip || '—' %></td>
+          <td><%= fmtTime(s.createdAt) %></td>
+          <td><%= fmtTime(s.lastSeenAt) %></td>
+          <td class="act">
+            <% if (s.isCurrent) { %>
+              <a class="btn" href="/logout"><%= t('profile.signOut') %></a>
+            <% } else { %>
+              <form method="post" action="/profile/sessions/<%= encodeURIComponent(s.id) %>/revoke" data-confirm="<%= t('profile.revokeConfirm') %>">
+                <button class="danger"><%= t('profile.revoke') %></button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (sessions.length === 0) { %>
+        <tr><td colspan="5" class="muted"><%= t('profile.empty') %></td></tr>
+      <% } %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,38 @@
+<%- include('../partials/head', { title: t('roles.title'), user, isAdmin }) %>
+
+<h1><%= t('roles.title') %></h1>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('roles.colKey') %></th><th><%= t('roles.colName') %></th><th><%= t('roles.colGrants') %></th><th></th></tr></thead>
+  <tbody>
+    <% roles.forEach(function(r){ %>
+      <tr>
+        <td><a href="/admin/roles/<%= r.key %>"><code><%= r.key %></code></a></td>
+        <td><%= r.name %></td>
+        <td><%= (r.grants||[]).length %></td>
+        <td class="act">
+          <% if (r.key === 'system_admin') { %>
+            <span class="muted" title="<%= t('roles.protectedTitle') %>"><%= t('common.protected') %></span>
+          <% } else { %>
+            <form method="post" action="/admin/roles/<%= r.key %>/delete" data-confirm="<%= t('roles.deleteConfirm', { key: r.key }) %>"><button class="danger"><%= t('common.delete') %></button></form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<h2><%= t('roles.createRole') %></h2>
+<form class="card row" method="post" action="/admin/roles">
+  <label><%= t('roles.colKey') %>
+    <%- include('../partials/info', { tip: t('roles.keyTip') }) %>
+    <input name="key" placeholder="<%= t('roles.keyPlaceholder') %>" required pattern="[a-z0-9][a-z0-9_-]{0,63}" title="<%= t('roles.keyTip') %>" />
+  </label>
+  <input name="name" placeholder="<%= t('common.displayNamePlaceholder') %>" />
+  <input name="description" placeholder="<%= t('common.descriptionPlaceholder') %>" />
+  <button class="primary"><%= t('common.create') %></button>
+</form>
+
+<%- include('../partials/foot') %>

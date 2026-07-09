@@ -1,0 +1,18 @@
+<%- include('partials/head', { title: t('noAccess.title'), user, isAdmin: false }) %>
+
+<div class="card">
+  <% if (reason === 'not_provisioned') { %>
+    <h1><%= t('noAccess.notProvisionedTitle') %></h1>
+    <p><%= t('noAccess.notProvisionedBody') %></p>
+  <% } else { %>
+    <h1><%= t('noAccess.title') %></h1>
+    <p><%= t('noAccess.bodyPrefix') %> <strong><%= app || t('noAccess.thisApp') %></strong>.
+       <%= t('noAccess.bodySuffix') %></p>
+  <% } %>
+  <p class="row">
+    <% if (user) { %><a class="btn" href="/"><%= t('noAccess.backToApps') %></a><% } %>
+    <a class="btn" href="/logout"><%= t('nav.signOut') %></a>
+  </p>
+</div>
+
+<%- include('partials/foot') %>

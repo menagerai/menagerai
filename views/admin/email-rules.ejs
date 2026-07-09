@@ -1,0 +1,66 @@
+<%- include('../partials/head', { title: t('email.title'), user, isAdmin }) %>
+<% var typeLabel = function (type) { return t(type === 'exact' ? 'email.typeExact' : 'email.typeDomain'); }; %>
+
+<h1><%= t('email.title') %></h1>
+<p class="muted"><%= t('email.intro') %></p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('email.colType') %></th><th><%= t('email.colPattern') %></th><th><%= t('email.colStatus') %></th><th><%= t('email.colDescription') %></th><th></th><th></th></tr></thead>
+  <tbody>
+    <% rules.forEach(function(r){ %>
+      <tr>
+        <td><%= typeLabel(r.type) %></td><td><code><%= r.pattern %></code></td><td><%= t('common.status.' + r.status) %></td>
+        <td><form class="row" method="post" action="/admin/email-rules/<%= r._id %>/description" style="gap:6px; flex-wrap:nowrap;">
+          <input name="description" value="<%= r.description || '' %>" placeholder="<%= t('common.descriptionPlaceholder') %>" style="width:220px" />
+          <button><%= t('common.save') %></button>
+        </form></td>
+        <td class="act"><form method="post" action="/admin/email-rules/<%= r._id %>/toggle"><button><%= r.status === 'active' ? t('common.disable') : t('common.enable') %></button></form></td>
+        <td class="act"><form method="post" action="/admin/email-rules/<%= r._id %>/delete" data-confirm="<%= t('email.deleteConfirm') %>"><button class="danger"><%= t('common.delete') %></button></form></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<h2><%= t('email.addRule') %></h2>
+<form class="card row" method="post" action="/admin/email-rules">
+  <label><%= t('email.colType') %>
+    <%- include('../partials/info', { tip: t('email.typeTip') }) %>
+    <select name="type" id="rule-type">
+      <option value="exact"><%= t('email.typeExact') %></option>
+      <option value="domain"><%= t('email.typeDomain') %></option>
+    </select>
+  </label>
+  <label><%= t('email.pattern') %>
+    <span class="info" id="pattern-info" tabindex="0" role="note" data-tip="">i</span>
+    <input name="pattern" id="rule-pattern" placeholder="" style="width:340px" />
+  </label>
+  <input name="description" placeholder="<%= t('common.descriptionPlaceholder') %>" />
+  <button class="primary"><%= t('common.add') %></button>
+</form>
+<p class="muted" id="rule-hint" style="margin-top:-6px"></p>
+
+<script>
+  (function () {
+    var HINTS = {
+      exact:  { ph: 'admin@example.com', tip: <%- JSON.stringify(t('email.hintExact')) %> },
+      domain: { ph: 'example.com', tip: <%- JSON.stringify(t('email.hintDomain')) %> },
+    };
+    var sel = document.getElementById('rule-type');
+    var input = document.getElementById('rule-pattern');
+    var info = document.getElementById('pattern-info');
+    var hint = document.getElementById('rule-hint');
+    function apply() {
+      var h = HINTS[sel.value] || HINTS.exact;
+      input.placeholder = h.ph;
+      info.setAttribute('data-tip', h.tip);
+      info.setAttribute('aria-label', h.tip);
+      hint.textContent = h.tip;
+    }
+    sel.addEventListener('change', apply);
+    apply();
+  })();
+</script>
+
+<%- include('../partials/foot') %>

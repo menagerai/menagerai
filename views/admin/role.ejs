@@ -1,0 +1,52 @@
+<%- include('../partials/head', { title: role.key, user, isAdmin }) %>
+
+<p><a href="/admin/roles"><%= t('role.back') %></a></p>
+<h1><%= role.name %> <code><%= role.key %></code></h1>
+
+<h2><%= t('role.editRole') %></h2>
+<form class="card" method="post" action="/admin/roles/<%= role.key %>/edit">
+  <p><label><%= t('role.name') %><br /><input name="name" value="<%= role.name %>" style="width:320px" /></label></p>
+  <p><label><%= t('role.description') %><br /><input name="description" value="<%= role.description || '' %>" style="width:420px" /></label></p>
+  <p><button class="primary"><%= t('common.save') %></button></p>
+</form>
+
+<h2><%= t('role.renameKey') %></h2>
+<% if (role.key === protectedRole) { %>
+  <p class="muted"><%= t('role.structuralCannotRename', { key: role.key }) %></p>
+<% } else { %>
+  <form class="card row" method="post" action="/admin/roles/<%= role.key %>/rename" data-confirm="<%= t('role.renameConfirm', { key: role.key }) %>">
+    <label><%= t('role.newKey') %>
+      <%- include('../partials/info', { tip: t('role.newKeyTip') }) %>
+      <input name="new_key" value="<%= role.key %>" pattern="[a-z0-9][a-z0-9_-]{0,63}" title="<%= t('role.newKeyTip') %>" required />
+    </label>
+    <button class="danger"><%= t('role.renameKeyBtn') %></button>
+  </form>
+<% } %>
+
+<h2><%= t('role.grantsTitle') %></h2>
+<p class="muted"><%= t('role.grantsHint') %></p>
+<div class="card">
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th><%= t('role.colApp') %></th><th></th></tr></thead>
+    <tbody>
+      <% (role.grants||[]).forEach(function(g){ %>
+        <tr><td><%= g.app %></td>
+          <td><form method="post" action="/admin/roles/<%= role.key %>/grants/delete"><input type="hidden" name="app" value="<%= g.app %>"><button class="danger"><%= t('common.remove') %></button></form></td></tr>
+      <% }) %>
+      <% if ((role.grants||[]).length === 0) { %><tr><td colspan="2" class="muted"><%= t('role.noGrants') %></td></tr><% } %>
+    </tbody>
+  </table>
+  </div>
+  <form class="row" method="post" action="/admin/roles/<%= role.key %>/grants" style="margin-top:10px;">
+    <% if (availableApps.length === 0) { %>
+      <select name="app" disabled><option><%= t('role.allAppsGranted') %></option></select>
+      <button class="primary" disabled><%= t('role.addGrant') %></button>
+    <% } else { %>
+      <select name="app"><% availableApps.forEach(function(a){ %><option value="<%= a.key %>"><%= a.key %></option><% }) %></select>
+      <button class="primary"><%= t('role.addGrant') %></button>
+    <% } %>
+  </form>
+</div>
+
+<%- include('../partials/foot') %>

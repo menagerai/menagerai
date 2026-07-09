@@ -1,0 +1,34 @@
+<%- include('../partials/head', { title: t('apps.title'), user, isAdmin }) %>
+
+<h1><%= t('apps.title') %></h1>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th><%= t('apps.colKey') %></th><th><%= t('apps.colName') %></th><th><%= t('apps.colStatus') %></th><th><%= t('apps.colPath') %></th><th><%= t('app.defaultUrl') %></th><th></th></tr></thead>
+  <tbody>
+    <% apps.forEach(function(a){ %>
+      <tr>
+        <td><a href="/admin/apps/<%= a.key %>"><code><%= a.key %></code></a></td>
+        <td><%= a.name %></td>
+        <td><%= t('common.status.' + a.status) %></td>
+        <td><code><%= a.base_path || ('/apps/' + a.key) %></code></td>
+        <td><%= a.default_base_url ? a.default_base_url : '—' %></td>
+        <td class="act"><form method="post" action="/admin/apps/<%= a.key %>/delete" data-confirm="<%= t('apps.deleteConfirm', { key: a.key }) %>"><button class="danger"><%= t('common.delete') %></button></form></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<h2><%= t('apps.registerApp') %></h2>
+<form class="card row" method="post" action="/admin/apps">
+  <label><%= t('apps.colKey') %>
+    <%- include('../partials/info', { tip: t('apps.keyTip') }) %>
+    <input name="key" placeholder="demo" required pattern="[a-z0-9][a-z0-9_-]{0,63}" title="<%= t('apps.keyTip') %>" />
+  </label>
+  <input name="name" placeholder="<%= t('common.displayNamePlaceholder') %>" />
+  <button class="primary"><%= t('apps.register') %></button>
+</form>
+<p class="muted"><%= t('apps.footnote') %></p>
+
+<%- include('../partials/foot') %>
