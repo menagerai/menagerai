@@ -67,6 +67,8 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
 
 ## Quickstart
 
+**We strongly recommend [Coolify](https://github.com/coollabsio/coolify)** to self-host both the Menagerai platform and the vibe-coded apps you put behind it. This documentation is written with Coolify in mind; compatibility with other self-hosting platforms is untested and therefore not guaranteed.
+
 Menagerai delegates authentication to **[Logto](https://github.com/logto-io/logto)** (cloud or self-hosted), so you bring a
 Logto tenant and hand Menagerai six values. The app boots either way — if anything is
 missing or unreachable it serves a **configuration screen naming exactly what to fix**,
@@ -117,6 +119,8 @@ provisioned into Logto automatically.
 > Seeing a **"Configuration required"** screen? It lists each setting that is unset or
 > that Logto rejected (missing var, bad URL, wrong M2M role…). Fix your `.env`, then run
 > `docker compose up -d` again — settings are read only at startup.
+
+**Deploying for real?** See the [**Deployment & Bootstrap Runbook**](./DEPLOY.md) for the full production setup on Coolify — not just deploying Menagerai itself, but also **how to bring your own apps under its gateway** (per-app access control, trusted identity headers, and end-to-end verification).
 
 ## Design & architecture
 
