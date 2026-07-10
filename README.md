@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ménagerai — Taming your wild, vibe-coded apps.
+# Ménagerai — Taming your wild, vibe-coded apps
 
 <img src="public/menagerie_icon_1024.png" alt="Menagerai logo" width="384" />
 
