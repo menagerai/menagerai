@@ -1,6 +1,6 @@
 <div align="center">
 
-# Menagerai
+# Ménagerai
 
 <img src="public/menagerie_icon_256.png" alt="Menagerai logo" width="140" />
 
