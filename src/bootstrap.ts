@@ -2,8 +2,9 @@ import crypto from 'crypto';
 import { config } from './config';
 import { col } from './db';
 
-// Idempotent bootstrap helpers shared by the seed CLI (src/seed.ts), the first-run
-// setup wizard (src/routes/setup.ts), and the break-glass CLI (src/relink.ts).
+// Idempotent bootstrap helpers shared by the seed CLI (src/seed.ts), the startup
+// preflight-gated auto-seed (src/server-all.ts / src/server-web.ts), and the
+// break-glass CLI (src/relink.ts).
 
 // Ensure the superadmin exists: an exact email allow-rule, the system_admin role,
 // and the superadmin user (unlinked — logto_user_id null — until first sign-in).
@@ -104,18 +105,3 @@ export async function relinkUser(email: string): Promise<void> {
   await col.users.updateOne({ email: email.toLowerCase() }, { $set: { logto_user_id: null, updated_at: new Date() } });
 }
 
-// First-run setup is complete once an active system_admin has actually signed in
-// (i.e. has a linked IdP subject). Cached true once reached — setup can't un-complete.
-let setupCache = false;
-export async function isSetupComplete(): Promise<boolean> {
-  if (setupCache) return true;
-  const admins = await col.users.find({ status: 'active', roles: 'system_admin' }).toArray();
-  setupCache = admins.some((a) => Boolean(a.logto_user_id));
-  return setupCache;
-}
-
-// Called from the OIDC callback once a superadmin links, so the guard flips without
-// waiting for the next DB read.
-export function markSetupComplete(): void {
-  setupCache = true;
-}

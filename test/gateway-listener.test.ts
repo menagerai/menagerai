@@ -13,6 +13,10 @@ vi.mock('../src/audit', () => ({ audit: vi.fn() }));
 
 import { buildGatewayApp, buildPublicApp } from '../src/app';
 
+// A passing preflight → the app routes normally (no config screen). buildPublicApp
+// now requires this; the config-error path is covered in startup-checks.test.ts.
+const okStartup = { ok: true as const, problems: [], checkedAt: new Date() };
+
 // A bare GET /gateway/verify (no X-Forwarded-Uri) resolves to a non-/apps path, so
 // the gateway router answers "Unknown path." (404) when it is mounted. When it is
 // NOT mounted, the request falls through to the global "Not found" 404 — that
@@ -29,13 +33,13 @@ describe('gateway listener wiring', () => {
   });
 
   it('the public app serves /gateway/verify when mountGateway is true', async () => {
-    const res = await verify(buildPublicApp({ mountGateway: true }));
+    const res = await verify(buildPublicApp({ mountGateway: true, startup: okStartup }));
     expect(res.status).toBe(404);
     expect(res.text).toBe('Unknown path.'); // gateway router mounted
   });
 
   it('the public app does NOT serve /gateway/verify when mountGateway is false', async () => {
-    const res = await verify(buildPublicApp({ mountGateway: false }));
+    const res = await verify(buildPublicApp({ mountGateway: false, startup: okStartup }));
     expect(res.status).toBe(404);
     expect(res.text).toBe('Not found'); // global catch-all — verify is unreachable here
   });

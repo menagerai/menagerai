@@ -1,0 +1,43 @@
+<%- include('partials/head', { title: 'Configuration required', user: null, isAdmin: false }) %>
+
+<div class="card" style="max-width:720px;margin:40px auto;">
+  <h1 style="margin-top:0;">Configuration required</h1>
+  <p>
+    <%= brand %> can't start the portal yet — it needs a working connection to your
+    Logto identity provider. The container is running (health checks pass), but the
+    settings below must be fixed before anyone can sign in.
+  </p>
+
+  <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+    <thead>
+      <tr style="text-align:left;border-bottom:1px solid var(--line);">
+        <th style="padding:8px 10px;">Setting</th>
+        <th style="padding:8px 10px;">Problem</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% problems.forEach(function (p) { %>
+        <tr style="border-bottom:1px solid var(--line);vertical-align:top;">
+          <td style="padding:8px 10px;white-space:nowrap;">
+            <code style="color:var(--danger);"><%= p.key %></code><br />
+            <span style="font-size:12px;color:var(--muted);"><%= p.severity %></span>
+          </td>
+          <td style="padding:8px 10px;"><%= p.message %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+
+  <p style="color:var(--muted);">
+    Set these in your environment (your <code>.env</code> file or your host's
+    environment settings) and redeploy. Values are read only at startup, so a
+    restart is required after changing them. See the project README's
+    <strong>Quickstart</strong> for the four Logto steps and the full variable list.
+  </p>
+  <p style="font-size:12px;color:var(--muted);">
+    Checked at <%= fmtTime(checkedAt, { seconds: true }) %>. This screen disappears
+    automatically once every setting validates.
+  </p>
+</div>
+
+<%- include('partials/foot') %>
