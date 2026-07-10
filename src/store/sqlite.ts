@@ -294,7 +294,6 @@ const COLLECTIONS: { name: keyof Collections; table: string; idType: IdType }[] 
   { name: 'audit', table: 'audit_logs', idType: 'objectId' },
   { name: 'usageDaily', table: 'usage_daily', idType: 'objectId' },
   { name: 'apiKeys', table: 'api_keys', idType: 'objectId' },
-  { name: 'settings', table: 'settings', idType: 'objectId' },
 ];
 
 export function openSqlite(filePath: string): StoreBackend {

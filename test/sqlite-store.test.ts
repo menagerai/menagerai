@@ -150,17 +150,6 @@ describe('deletes and unique indexes', () => {
   });
 });
 
-describe('settings store', () => {
-  it('upserts a single provider doc and enforces the unique key', async () => {
-    await col.settings.createIndex({ key: 1 }, { unique: true });
-    await col.settings.updateOne({ key: 'provider' }, { $set: { key: 'provider', endpoint: 'a', updated_at: new Date() } }, { upsert: true });
-    await col.settings.updateOne({ key: 'provider' }, { $set: { endpoint: 'b', updated_at: new Date() } }, { upsert: true });
-    const all = await col.settings.find({ key: 'provider' }).toArray();
-    expect(all.length).toBe(1);
-    expect((all[0] as any).endpoint).toBe('b');
-  });
-});
-
 describe('date revival + range/exists operators', () => {
   it('revives ISO-datetime fields to Date and supports $gt / $exists', async () => {
     const now = new Date('2026-07-09T12:00:00.000Z');

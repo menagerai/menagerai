@@ -145,35 +145,6 @@ export interface UsageDaily {
   last_at: Date;
 }
 
-// An AES-256-GCM encrypted secret blob (see src/crypto.ts). Stored in place of a
-// plaintext secret so provider credentials are not readable from a raw DB dump —
-// decryptable only with APP_ENCRYPTION_KEY.
-export interface EncryptedBlob {
-  iv: string; // base64 nonce
-  tag: string; // base64 GCM auth tag
-  ct: string; // base64 ciphertext
-}
-
-// Single-document store for runtime-writable configuration captured by the
-// first-run setup wizard, keyed by a fixed `key` (currently only 'provider').
-// Env vars, when set, OVERRIDE anything stored here (see src/idp/config.ts) — this
-// is the fallback used when the operator configures the IdP in the UI instead.
-export interface SettingsDoc {
-  _id?: ObjectId;
-  key: string; // fixed discriminator, e.g. 'provider'
-  // OIDC sign-in config
-  endpoint?: string;
-  appId?: string;
-  appSecretEnc?: EncryptedBlob;
-  scopes?: string;
-  idTokenAlg?: string;
-  // Optional Management API (provisioning) config
-  m2mAppId?: string;
-  m2mAppSecretEnc?: EncryptedBlob;
-  managementResource?: string;
-  updated_at: Date;
-}
-
 // Access is binary at this layer: the portal only performs coarse,
 // gate-level access control (may this user reach the app at all). The ACP does
 // not model in-app roles; any finer-grained authorization is the app's own

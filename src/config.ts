@@ -72,9 +72,9 @@ export const config = {
     secure: opt('COOKIE_SECURE', 'true') !== 'false',
   },
 
-  // Identity-provider config is NOT here — it is resolved at runtime (env or the
-  // settings store written by first-run setup) in src/idp/config.ts, so it can be
-  // configured in the UI without a redeploy.
+  // Identity-provider config is NOT here — it is resolved at runtime from the
+  // LOGTO_* env vars in src/idp/config.ts (their presence + live connections are
+  // validated at boot; see src/startup.ts).
 
   superadminEmail: opt('SUPERADMIN_EMAIL', 'admin@example.com').toLowerCase(),
   decisionCacheTtlMs: int('DECISION_CACHE_TTL_MS', 30_000),
