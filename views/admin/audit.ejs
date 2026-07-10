@@ -1,0 +1,24 @@
+<%- include('../partials/head', { title: t('audit.title'), user, isAdmin }) %>
+
+<h1><%= t('audit.title') %></h1>
+<p class="muted"><%= t('audit.intro') %></p>
+
+<div class="table-scroll">
+  <table>
+    <thead><tr><th><%= t('audit.colTime') %></th><th><%= t('audit.colActor') %></th><th><%= t('audit.colAction') %></th><th><%= t('audit.colTarget') %></th><th><%= t('audit.colDetail') %></th></tr></thead>
+    <tbody>
+      <% logs.forEach(function(l){ %>
+        <tr>
+          <td><%= fmtTime(l.created_at, { seconds: true }) %></td>
+          <td><%= l.actor_user_id || '' %></td>
+          <td><code><%= l.action %></code><% if (l.via === 'api') { %><span class="badge-api" title="<%= t('audit.viaApiTip') %><%= l.api_key_name ? (': ' + l.api_key_name) : '' %>"><%= t('audit.apiBadge') %></span><% } %></td>
+          <td><%= l.target_type || '' %><%= l.target_id ? (':' + l.target_id) : '' %></td>
+          <td><% if (l.after) { var _full = JSON.stringify(l.after); %><span class="muted detail" tabindex="0" role="button" title="<%= _full %>"><%= _full %></span><% } %></td>
+        </tr>
+      <% }) %>
+      <% if (logs.length === 0) { %><tr><td colspan="5" class="muted"><%= t('audit.empty') %></td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/foot') %>

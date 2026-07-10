@@ -1,0 +1,81 @@
+<%- include('../partials/head', { title: t('apiKeys.title'), user, isAdmin }) %>
+
+<div class="page-head">
+  <h1><%= t('apiKeys.title') %></h1>
+</div>
+
+<p class="muted"><%= t('apiKeys.intro') %> <a href="/admin/docs" target="_blank" rel="noopener"><%= t('apiKeys.docsLink') %></a></p>
+
+<% if (typeof newKey !== 'undefined' && newKey) { %>
+  <div class="card" style="border-color:var(--accent);">
+    <h2 style="margin-top:0;"><%= t('apiKeys.createdTitle') %></h2>
+    <p class="muted"><%= t('apiKeys.createdWarning') %></p>
+    <div class="row" style="align-items:stretch;">
+      <code id="newSecret" style="user-select:all; flex:1 1 auto; min-width:0; overflow-x:auto; white-space:nowrap; padding:8px;"><%= newKey.secret %></code>
+      <button type="button" class="btn primary" id="copySecret" data-copy="newSecret"><%= t('apiKeys.copy') %></button>
+    </div>
+  </div>
+<% } %>
+
+<div class="card">
+  <form method="post" action="/admin/api-keys" class="row">
+    <input name="name" maxlength="80" placeholder="<%= t('apiKeys.namePlaceholder') %>" style="flex:1 1 auto; min-width:0;" />
+    <button type="submit" class="btn primary"><%= t('apiKeys.generate') %></button>
+  </form>
+</div>
+
+<div class="table-scroll">
+<table>
+  <thead><tr>
+    <th><%= t('apiKeys.colName') %></th>
+    <th><%= t('apiKeys.colKey') %></th>
+    <th><%= t('apiKeys.colCreated') %></th>
+    <th><%= t('apiKeys.colLastUsed') %></th>
+    <th></th>
+  </tr></thead>
+  <tbody>
+    <% if (!keys || keys.length === 0) { %>
+      <tr><td colspan="5" class="muted"><%= t('apiKeys.empty') %></td></tr>
+    <% } %>
+    <% (keys || []).forEach(function (k) { %>
+      <tr>
+        <td><%= k.name %><% if (k.revoked_at) { %> <span class="muted">(<%= t('apiKeys.revoked') %>)</span><% } %></td>
+        <td><code><%= mask(k) %></code></td>
+        <td><%= fmtTime(k.created_at) %></td>
+        <td><%= k.last_used_at ? fmtTime(k.last_used_at) : t('apiKeys.never') %></td>
+        <td class="act">
+          <% if (!k.revoked_at) { %>
+            <form method="post" action="/admin/api-keys/<%= k._id %>/revoke" data-confirm="<%= t('apiKeys.revokeConfirm') %>">
+              <button class="danger"><%= t('apiKeys.revoke') %></button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+</div>
+
+<script>
+  // Copy-to-clipboard for the one-time secret reveal.
+  (function () {
+    var btn = document.getElementById('copySecret');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var el = document.getElementById(btn.getAttribute('data-copy'));
+      if (!el) return;
+      var text = el.textContent;
+      var done = function () { var o = btn.textContent; btn.textContent = '<%= t('apiKeys.copied') %>'; setTimeout(function () { btn.textContent = o; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () {});
+      } else {
+        var r = document.createRange(); r.selectNode(el);
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        s.removeAllRanges();
+      }
+    });
+  })();
+</script>
+
+<%- include('../partials/foot') %>

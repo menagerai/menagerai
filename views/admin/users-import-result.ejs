@@ -1,0 +1,36 @@
+<%- include('../partials/head', { title: t('usersImport.resultTitle'), user, isAdmin }) %>
+
+<p><a href="/admin/users">&larr; <%= t('users.title') %></a></p>
+<h1><%= t('usersImport.resultTitle') %></h1>
+
+<div class="card">
+  <ul style="line-height:1.8; margin:0;">
+    <li><strong><%= counts.created %></strong> — <%= t('usersImport.created') %></li>
+    <li><%= counts.rulesCreated %> — <%= t('usersImport.rulesCreated') %></li>
+    <li><%= counts.existing %> — <%= t('usersImport.existing') %></li>
+    <li><%= counts.notAllowed %> — <%= t('usersImport.notAllowed') %></li>
+    <li><%= counts.invalid %> — <%= t('usersImport.invalid') %></li>
+    <li><%= counts.duplicate %> — <%= t('usersImport.duplicate') %></li>
+    <% if (counts.logtoFailed > 0) { %><li style="color:#b45309;"><%= counts.logtoFailed %> — <%= t('usersImport.logtoFailed') %></li><% } %>
+  </ul>
+  <p class="muted" style="margin-top:10px;"><%= t('usersImport.totalRows', { n: counts.total }) %><% if (role) { %> · <%= t('usersImport.assignedRole', { role: role }) %><% } %></p>
+</div>
+
+<% if (problems.length > 0) { %>
+  <h2><%= t('usersImport.problemsTitle') %></h2>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th><%= t('users.colEmail') %></th><th><%= t('usersImport.colReason') %></th></tr></thead>
+    <tbody>
+      <% problems.forEach(function(p){ %>
+        <tr><td><%= p.email %></td><td><%= t('usersImport.reason.' + p.reason) %></td></tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+<% } %>
+
+<p style="margin-top:14px;"><a class="btn" href="/admin/users/import"><%= t('usersImport.importAgain') %></a>
+  <a class="btn primary" href="/admin/users"><%= t('usersImport.backToUsers') %></a></p>
+
+<%- include('../partials/foot') %>

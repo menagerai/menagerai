@@ -1,0 +1,20 @@
+<div class="heatmap" role="img" aria-label="<%= t('heatmap.aria', { days: heatmapDays }) %>">
+  <% heatmap.weeks.forEach(function(week){ %>
+    <div class="hm-col">
+      <% week.forEach(function(c){ %>
+        <% if (c.day) { %>
+          <span class="hm-cell l<%= c.level %>" title="<%= c.day %>: <%= c.count %>"></span>
+        <% } else { %>
+          <span class="hm-cell empty"></span>
+        <% } %>
+      <% }) %>
+    </div>
+  <% }) %>
+</div>
+<% if (typeof showLegend === 'undefined' || showLegend) { %>
+<div class="hm-legend muted">
+  <%= t('heatmap.less') %>
+  <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>
+  <%= t('heatmap.more', { days: heatmapDays }) %>
+</div>
+<% } %>

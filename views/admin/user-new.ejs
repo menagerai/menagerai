@@ -1,0 +1,21 @@
+<%- include('../partials/head', { title: t('userNew.title'), user, isAdmin }) %>
+
+<h1><%= t('userNew.title') %></h1>
+<p class="muted"><%= t('userNew.emailMustMatch') %>
+  <% if (!managementConfigured) { %><%= t('userNew.logtoOff') %><% } %>
+</p>
+
+<form class="card" method="post" action="/admin/users">
+  <p><label><%= t('userNew.email') %>
+    <%- include('../partials/info', { tip: t('userNew.emailTip') }) %>
+    <br /><input name="email" type="email" style="width:320px" required /></label></p>
+  <p><label><%= t('userNew.name') %><br /><input name="name" style="width:320px" /></label></p>
+  <p><label><%= t('userNew.department') %><br /><input name="department" style="width:320px" /></label></p>
+  <p><%= t('userNew.roles') %></p>
+  <% roles.forEach(function(r){ %>
+    <label style="display:block"><input type="checkbox" name="roles" value="<%= r.key %>" /> <%= r.name %> <code><%= r.key %></code></label>
+  <% }) %>
+  <p><button class="primary" type="submit"><%= t('userNew.createUser') %></button> <a class="btn" href="/admin/users"><%= t('common.cancel') %></a></p>
+</form>
+
+<%- include('../partials/foot') %>

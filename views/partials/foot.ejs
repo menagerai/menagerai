@@ -1,0 +1,183 @@
+<% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+      </div></main>
+    </div>
+    <script>
+      (function () {
+        var body = document.body, btn = document.getElementById('navToggle');
+        if (!btn) return;
+        var KEY = 'menageraiAdminNavOpen';
+        var mq = window.matchMedia('(max-width: 767px)');
+        function setOpen(open) {
+          body.classList.toggle('nav-open', open);
+          btn.setAttribute('aria-expanded', String(open));
+        }
+        // Default closed. On desktop, restore the saved preference so the panel
+        // stays open while navigating admin pages; on mobile always start closed.
+        var saved = false;
+        try { saved = localStorage.getItem(KEY) === '1'; } catch (e) {}
+        setOpen(!mq.matches && saved);
+        function persist(open) { try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) {} }
+        btn.addEventListener('click', function () {
+          var open = !body.classList.contains('nav-open');
+          setOpen(open);
+          persist(open);
+        });
+        // The in-panel × dismisses it (the open panel can cover the toggle).
+        var closeBtn = document.getElementById('navClose');
+        if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); persist(false); });
+        // Clicking anywhere outside the open panel also dismisses it, same as the
+        // ×. Ignore the toggle (it manages its own open/close) and clicks landing
+        // inside the panel itself.
+        var sidebar = document.getElementById('sidebar');
+        document.addEventListener('click', function (e) {
+          if (!body.classList.contains('nav-open')) return;
+          if (btn.contains(e.target)) return;
+          if (sidebar && sidebar.contains(e.target)) return;
+          setOpen(false); persist(false);
+        });
+        if (mq.addEventListener) mq.addEventListener('change', function () { setOpen(!mq.matches && saved); });
+      })();
+    </script>
+<% } else { %>
+  </div>
+<% } %>
+<script>
+  // Activity heatmaps render oldest→newest left-to-right, so the newest (most
+  // relevant) column is on the right. When the strip overflows its container
+  // (narrow/mobile viewports) start it scrolled fully right so recent activity
+  // is visible without swiping. Setting scrollLeft past the max clamps to the
+  // right edge, so this is a no-op when the heatmap fits. Re-applied on pageshow
+  // so back/forward (incl. bfcache) restores still land on the right edge.
+  (function () {
+    function snapRight() {
+      document.querySelectorAll('.heatmap').forEach(function (el) {
+        el.scrollLeft = el.scrollWidth;
+      });
+    }
+    snapRight();
+    window.addEventListener('pageshow', snapRight);
+  })();
+</script>
+<script>
+  // Top-bar dropdowns are <details> elements; close any open one when clicking
+  // outside it (or opening another), so they behave like normal menus.
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.menu[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+</script>
+<script>
+  // Confirm dialogs via a translated data-confirm attribute (keeps i18n text out
+  // of fragile inline onsubmit handlers). A form with [data-confirm] prompts
+  // before submitting; cancel aborts.
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (f && f.matches && f.matches('form[data-confirm]')) {
+      if (!window.confirm(f.getAttribute('data-confirm'))) e.preventDefault();
+    }
+  });
+</script>
+<script>
+  // Navigation progress: when a click or form submit is about to load a new page,
+  // show a lightweight spinner in the toast slot so a multi-second backend op
+  // doesn't feel like a stall. It lives where the flash toasts do — the eye is
+  // already there, and the result toast replaces it once the next page renders.
+  // A short delay avoids a flash on fast loads (the page usually unloads first);
+  // back/forward (incl. bfcache) clears it via pageshow.
+  (function () {
+    var DELAY = 180, timer = null, wrap = null;
+    function show() {
+      if (wrap) return;
+      wrap = document.createElement('div');
+      wrap.className = 'toast-wrap';
+      var t = document.createElement('div');
+      t.className = 'toast loading';
+      t.setAttribute('role', 'status');
+      t.setAttribute('aria-live', 'polite');
+      var s = document.createElement('span'); s.className = 'spinner';
+      var txt = document.createElement('span'); txt.textContent = '<%= t('common.loading') %>';
+      t.appendChild(s); t.appendChild(txt);
+      wrap.appendChild(t);
+      document.body.appendChild(wrap);
+    }
+    function arm() { if (timer === null && !wrap) timer = setTimeout(show, DELAY); }
+    function disarm() {
+      if (timer !== null) { clearTimeout(timer); timer = null; }
+      if (wrap) { wrap.remove(); wrap = null; }
+    }
+    // Forms: this listener runs after the data-confirm handler above, so a
+    // cancelled confirm leaves defaultPrevented set; an invalid form fires no
+    // submit at all. New-tab targets keep the current page, so skip them.
+    document.addEventListener('submit', function (e) {
+      if (e.defaultPrevented) return;
+      var f = e.target;
+      if (f && f.matches && f.matches('form') && f.target !== '_blank') arm();
+    });
+    // Links: only genuine same-tab navigations that leave this page. Skip new
+    // tabs, downloads, modifier/middle clicks, non-http(s) schemes, and same-page
+    // (#) links that don't reload.
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a || a.target === '_blank' || a.hasAttribute('download')) return;
+      var url;
+      try { url = new URL(a.href, location.href); } catch (_) { return; }
+      if (url.origin !== location.origin) return;
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+      if (url.pathname === location.pathname && url.search === location.search) return; // in-page anchor
+      arm();
+    });
+    window.addEventListener('pageshow', disarm);
+  })();
+</script>
+<script>
+  // Truncated detail cells (e.g. audit JSON): hovering shows the full value via
+  // the native title; tapping/clicking — or Enter/Space when focused — toggles
+  // .open to reveal it wrapped in place, for touch devices that have no hover.
+  (function () {
+    function toggle(el) { var d = el.closest && el.closest('.detail'); if (d) d.classList.toggle('open'); }
+    document.addEventListener('click', function (e) { toggle(e.target); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var d = e.target.closest && e.target.closest('.detail');
+      if (d) { e.preventDefault(); d.classList.toggle('open'); }
+    });
+  })();
+</script>
+<script>
+  // Flash → toast: read the message + severity from the URL, show a colored,
+  // auto-dismissing toast, then strip those params so a refresh won't replay it
+  // (other query params, e.g. ?q=, are preserved). Message is set via textContent
+  // so it can never inject markup.
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var msg = p.get('msg');
+    if (!msg) return;
+    var icons = { success: '✓', warning: '⚠', error: '✕' };
+    var level = icons[p.get('lvl')] ? p.get('lvl') : 'success';
+    p.delete('msg'); p.delete('lvl');
+    var qs = p.toString();
+    history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'toast-wrap';
+    var t = document.createElement('div');
+    t.className = 'toast ' + level;
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
+    var ico = document.createElement('span'); ico.className = 'ico'; ico.textContent = icons[level];
+    var txt = document.createElement('span'); txt.textContent = msg;
+    var x = document.createElement('button'); x.className = 'close'; x.setAttribute('aria-label', '<%= t('common.dismiss') %>'); x.textContent = '×';
+    t.appendChild(ico); t.appendChild(txt); t.appendChild(x);
+    wrap.appendChild(t);
+    document.body.appendChild(wrap);
+
+    var timer;
+    function dismiss() { clearTimeout(timer); t.classList.add('hide'); setTimeout(function () { wrap.remove(); }, 260); }
+    x.addEventListener('click', dismiss);
+    timer = setTimeout(dismiss, 5000);
+  })();
+</script>
+</body>
+</html>

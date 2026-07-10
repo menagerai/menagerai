@@ -1,0 +1,19 @@
+<%- include('partials/head', { title: t('nav.brand'), user, isAdmin }) %>
+
+<h1><%= t('launcher.welcome', { name: user.name || user.email }) %></h1>
+<p class="muted"><%= t('launcher.yourApps') %></p>
+
+<% if (apps.length === 0) { %>
+  <div class="card"><%= t('launcher.noApps') %></div>
+<% } else { %>
+  <div class="grid">
+    <% apps.forEach(function(a) { %>
+      <a class="app-tile" href="<%= a.url %>" target="_blank" rel="noopener">
+        <div><strong><%= a.name %></strong></div>
+        <% if (a.description) { %><div class="desc"><%= a.description %></div><% } %>
+      </a>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('partials/foot') %>

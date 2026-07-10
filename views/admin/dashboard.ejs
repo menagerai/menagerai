@@ -1,0 +1,61 @@
+<%
+  // Exact width one full-window heatmap card needs, from its real column count:
+  // cols × 11px cells + (cols-1) × 3px gaps, + card padding (32) + border (2).
+  // Set on the centered content column (.wrap.wide), which is two of these wide;
+  // the grid then fits two cards only when two whole heatmaps genuinely do.
+  var _w = (appCards[0] && appCards[0].heatmap.weeks.length)
+        || (userCards[0] && userCards[0].heatmap.weeks.length) || 0;
+  var _cardW = _w ? (_w * 14 - 3 + 34) : 760;
+%>
+<%- include('../partials/head', { title: t('dashboard.title'), user, isAdmin, wide: true, wrapStyle: '--card-w:' + _cardW + 'px' }) %>
+
+<div class="page-head"><h1><%= t('dashboard.title') %></h1></div>
+<p class="muted"><%= t('dashboard.intro', { n: topN, days: rankDays }) %></p>
+
+<h2><%= t('dashboard.topApps') %></h2>
+<% if (appCards.length === 0) { %>
+  <p class="muted"><%= t('dashboard.noData') %></p>
+<% } else { %>
+  <div class="dash-legend hm-legend muted">
+    <%= t('heatmap.less') %>
+    <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>
+    <%= t('heatmap.more', { days: heatmapDays }) %>
+  </div>
+  <div class="dash-grid">
+    <% appCards.forEach(function(a){ %>
+      <div class="card dash-card">
+        <div class="dash-card-head">
+          <a href="/admin/apps/<%= a.app_key %>"><%= a.name %></a>
+          <code><%= a.app_key %></code>
+        </div>
+        <div class="dash-score muted"><%= t('dashboard.score') %>: <%= a.active %><span class="badge-window"><%= rankDays %>d</span> / <%= a.scoreFull %><span class="badge-window"><%= heatmapDays %>d</span></div>
+        <%- include('../partials/heatmap', { heatmap: a.heatmap, heatmapDays, showLegend: false }) %>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<h2><%= t('dashboard.topUsers') %></h2>
+<% if (userCards.length === 0) { %>
+  <p class="muted"><%= t('dashboard.noData') %></p>
+<% } else { %>
+  <div class="dash-legend hm-legend muted">
+    <%= t('heatmap.less') %>
+    <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>
+    <%= t('heatmap.more', { days: heatmapDays }) %>
+  </div>
+  <div class="dash-grid">
+    <% userCards.forEach(function(u){ %>
+      <div class="card dash-card">
+        <div class="dash-card-head">
+          <a href="/admin/users/<%= u.user_id %>"><%= u.email %></a>
+          <% if (u.name) { %><code><%= u.name %></code><% } %>
+        </div>
+        <div class="dash-score muted"><%= t('dashboard.score') %>: <%= u.active %><span class="badge-window"><%= rankDays %>d</span> / <%= u.scoreFull %><span class="badge-window"><%= heatmapDays %>d</span></div>
+        <%- include('../partials/heatmap', { heatmap: u.heatmap, heatmapDays, showLegend: false }) %>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('../partials/foot') %>

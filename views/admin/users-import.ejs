@@ -1,0 +1,35 @@
+<%- include('../partials/head', { title: t('usersImport.title'), user, isAdmin }) %>
+
+<p><a href="/admin/users">&larr; <%= t('users.title') %></a></p>
+<h1><%= t('usersImport.title') %></h1>
+<p class="muted"><%= t('usersImport.intro') %></p>
+<% if (typeof managementConfigured !== 'undefined' && !managementConfigured) { %>
+  <div class="card" style="border-color:#f59e0b;"><%= t('userNew.logtoOff') %></div>
+<% } %>
+
+<form class="card" method="post" action="/admin/users/import" enctype="multipart/form-data">
+  <p><label><%= t('usersImport.fileLabel') %>
+    <%- include('../partials/info', { tip: t('usersImport.fileTip') }) %>
+    <br /><input name="file" type="file" accept=".xlsx,.xls,.csv" required /></label></p>
+
+  <p><label><input type="checkbox" name="auto_rule" /> <%= t('usersImport.autoRuleLabel') %></label>
+    <%- include('../partials/info', { tip: t('usersImport.autoRuleTip') }) %></p>
+
+  <p><label><%= t('usersImport.roleLabel') %>
+    <%- include('../partials/info', { tip: t('usersImport.roleTip') }) %>
+    <br />
+    <% if (roles.length === 0) { %>
+      <span class="muted"><%= t('usersImport.noExtRoles') %></span>
+    <% } else { %>
+      <select name="role">
+        <option value=""><%= t('usersImport.roleNone') %></option>
+        <% roles.forEach(function(r){ %><option value="<%= r.key %>"><%= r.name %> (<%= r.key %>)</option><% }) %>
+      </select>
+    <% } %>
+  </label></p>
+
+  <p><button class="primary" type="submit"><%= t('usersImport.submit') %></button>
+    <a class="btn" href="/admin/users"><%= t('common.cancel') %></a></p>
+</form>
+
+<%- include('../partials/foot') %>

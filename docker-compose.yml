@@ -1,0 +1,34 @@
+# Menagerai — one-command quickstart.
+#
+#   1. cp .env.example .env   and fill in the REQUIRED values
+#      (see the README "Quickstart" for the four Logto steps).
+#   2. docker compose up -d --build
+#   3. Open PORTAL_BASE_URL and sign in as SUPERADMIN_EMAIL.
+#
+# Menagerai delegates authentication to your Logto instance, so this file runs
+# Menagerai only — point LOGTO_ENDPOINT at your existing Logto (cloud or self-hosted).
+#
+# If the required Logto settings are missing or unreachable, the app still starts
+# and shows a configuration screen listing exactly what to fix; correct your .env
+# and run `docker compose up -d` again.
+
+services:
+  menagerai:
+    build: .
+    # Once a published image exists you can swap the build for, e.g.:
+    #   image: ghcr.io/menagerai/menagerai:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Keep the SQLite file on the named volume below so data survives redeploys.
+      SQLITE_PATH: /app/data/menagerai.db
+    volumes:
+      - menagerai-data:/app/data
+    # The image already defines a /healthz healthcheck. The container reports
+    # healthy even while the configuration screen is showing, so a missing env var
+    # never crash-loops the container — you just fix .env and redeploy.
+
+volumes:
+  menagerai-data:
