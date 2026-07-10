@@ -75,7 +75,7 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
 
 ## Quickstart
 
-**We strongly recommend [Coolify](https://github.com/coollabsio/coolify)** （open source) to self-host both the Menagerai platform and the vibe-coded apps you put behind it. This documentation is written with Coolify in mind; compatibility with other hosting platforms is untested and therefore not guaranteed.
+**We strongly recommend [Coolify](https://github.com/coollabsio/coolify)** (open source) to self-host both the Menagerai platform and the vibe-coded apps you put behind it. This documentation is written with Coolify in mind; compatibility with other hosting platforms is untested and therefore not guaranteed.
 
 Menagerai delegates authentication to **[Logto](https://github.com/logto-io/logto)** (cloud or self-hosted, open source), so you bring a Logto tenant and hand Menagerai six values. The app boots either way — if anything is missing or unreachable it serves a **configuration screen naming exactly what to fix**, so there is nothing to guess.
 
