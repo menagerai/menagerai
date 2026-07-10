@@ -1,44 +1,64 @@
 <div align="center">
 
-# Ménagerai — Taming your wild, vibe-coded apps 
+# Ménagerai — Taming your wild, vibe-coded apps
 
 <img src="public/menagerie_icon_1024.png" alt="Menagerai logo" width="384" />
 
-**The open-source portal for your vibe-coded apps — one login, per-app access control, and usage analytics for every app you deploy.**
-
-You shipped fifteen AI-generated internal apps. Menagerai puts them all behind one login, with per-app permissions and usage visibility — on your own infrastructure.
+**A self-hosted control plane for vibe-coded internal apps: one SSO portal,
+per-app RBAC, an app catalog, audit logs, and usage analytics.**
 
 [![CI](https://github.com/menagerai/menagerai/actions/workflows/ci.yml/badge.svg)](https://github.com/menagerai/menagerai/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 
 </div>
 
+Vibe coding lets teams ship AI-generated internal tools in hours. At enterprise
+scale, that creates a new kind of **shadow IT**: apps running in production with
+fragmented login, inconsistent access controls, and little visibility into who
+uses what.
+
+Menagerai adds post-deployment governance without forcing every app to rebuild
+authentication. Put existing apps behind its ForwardAuth gateway, connect your
+OIDC identity provider, and manage app-level access from one portal. Employees
+sign in once; IT gets a centralized app inventory, default-deny authorization,
+auditable access management, and adoption data for every app — on infrastructure
+the organization controls.
+
 ---
 
-## What it is
+## Why enterprise vibe coding needs governance
 
-The "vibe-coding" era made it trivial to ship internal apps — Lovable, Bolt, Replit, v0, or plain `docker compose up`. It did nothing to answer the questions that follow:
+Lovable, Bolt, Replit, v0, and AI coding agents make it trivial to ship internal
+apps. They do not answer the operational questions that follow:
 
 - Who is allowed to open each app?
 - How do people sign in **once** instead of per app?
 - Is anyone actually *using* the thing we built?
 
-Menagerai is the governance layer that answers all three. It is **not** another auth tool — the incumbents own "authentication." Menagerai owns the portal, the per-app authorization, and the usage analytics, and it delegates authentication to the OIDC-certified identity provider you already trust.
+Menagerai is the runtime access and visibility layer that answers all three. It is
+**not** another identity provider: Menagerai owns the app catalog, per-app
+authorization, auditability, and usage analytics, while delegating authentication
+to the OIDC-certified identity provider you already trust.
 
-## The four capabilities
+## What Menagerai governs
 
-No other open-source project combines all four. That is the whole point.
+These capabilities are usually spread across separate tools. Menagerai combines
+them into one control plane for an organization's internal app portfolio.
 
-| | Menagerai | Auth gateways<br>(Authelia, authentik…) | Dashboards<br>(Homarr, Homepage) | PaaS<br>(Coolify, Dokploy) |
+| | Menagerai | Auth gateways<br>(Authelia, authentik…) | App dashboards<br>(Homarr, Homepage) | PaaS<br>(Coolify, Dokploy) |
 |---|:---:|:---:|:---:|:---:|
-| **App launcher portal** — one home for every app | ✅ | ❌ | ✅ | ❌ |
-| **SSO enforcement on arbitrary deployed apps** | ✅ | ⚠️ own UI only | ❌ links only | ❌ |
-| **Per-app RBAC managed in a UI** | ✅ | ⚠️ config files | ❌ | ❌ |
-| **Per-user / per-app usage analytics** | ✅ | ❌ | ❌ | ❌ |
+| **Employee app portal and catalog** | ✅ | ⚠️ varies | ✅ | ❌ |
+| **SSO enforcement on arbitrary deployed apps** | ✅ | ✅ | ❌ links only | ❌ |
+| **App-level access policy managed in a UI** | ✅ | ⚠️ varies / often config | ❌ | ❌ |
+| **Per-user / per-app adoption analytics** | ✅ | ❌ | ❌ | ❌ |
 
 The **usage analytics** — a GitHub-style activity heatmap, power users, most-used apps — is the standout: it answers the manager's question ("is anyone using what we vibe-coded?") that pure-auth tools structurally cannot.
 
-## How it works
+<p align="center">
+  <img src="public/top_apps.png" alt="Usage analytics — most-used apps and active users" width="640" />
+</p>
+
+## How the runtime governance layer works
 
 ```text
 Your IdP proves identity.        (bring your own OIDC provider — Logto supported today)
@@ -52,10 +72,6 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
 - **An admin UI** for users, roles, apps, access rules, an audit log, and the usage
   dashboard.
 - **Works with the stack you already run** — bring your own OIDC provider and PaaS.
-
-<p align="center">
-  <img src="public/top_apps.png" alt="Usage analytics — most-used apps and active users" width="640" />
-</p>
 
 ## Quickstart
 
@@ -102,7 +118,7 @@ Open `PORTAL_BASE_URL` and sign in as `SUPERADMIN_EMAIL`. On the first valid sta
 
 **Deploying for real?** See the [**Deployment & Bootstrap Runbook**](./DEPLOY.md) for the full production setup on Coolify — not just deploying Menagerai itself, but also **how to bring your own apps under its gateway** (per-app access control, trusted identity headers, and end-to-end verification).
 
-## Design & architecture
+## Design, architecture, and app onboarding
 
 The system is documented in depth. These design docs are being published alongside the code and double as the "how to onboard a vibe-coded app in 10 minutes" guide.
 
@@ -113,12 +129,53 @@ Scope discipline keeps an access-control plane trustworthy:
 - **Not an identity provider.** We never store credentials — authentication is delegated to a certified OIDC IdP. That is a security feature, not a gap.
 - **Not multi-tenant.** One deployment = one organization. For self-hosted white-label that is the honest, simple architecture.
 - **Not a PaaS.** Menagerai governs the apps you deploy; it does not deploy them.
+- **Not an application security scanner.** Menagerai secures access to an app; it
+  does not review generated source code, manage the app's secrets, or replace
+  secure software review and production-readiness checks.
 
 ## Roadmap
 
 - **Now** — one-command `docker compose up` quickstart, env-validated startup with a self-explaining config screen, and a seeded demo app (all in this repo).
-- **Next** — a Coolify one-click template and a hosted live demo instance.
-- **Then** — broader provider support (more gateways, identity providers, and database options over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today.
+- **Next** — broader provider support (more gateways, identity providers, and database options over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today.
+
+## Frequently asked questions (FAQ)
+
+### What is enterprise vibe coding governance?
+
+It is the set of controls that lets teams use AI-assisted development without
+losing organizational visibility. Menagerai focuses on post-deployment runtime
+governance: which internal apps exist, who may access each one, and whether those
+apps are actually being used.
+
+### How do I add SSO to a vibe-coded app?
+
+Put the app behind Menagerai's ForwardAuth gateway. Menagerai handles the OIDC
+login and app-level access decision before forwarding an allowed request with
+trusted identity headers. Simple apps do not need to implement their own login.
+
+### Can Menagerai protect an existing app without changing its code?
+
+Yes, for apps that can run behind a reverse proxy. The gateway can enforce SSO
+and per-app access before the request reaches the app. Apps that need finer-grained
+permissions can also use native OIDC or shared middleware.
+
+### How does IT control access to AI-generated internal apps?
+
+Admins manage users, organizational roles, app grants, and direct user overrides
+in the Menagerai UI. Access is default-deny, and a user-level deny acts as an
+app-specific kill switch even when a broader role grants access.
+
+### How can I see whether internal apps are being used?
+
+Menagerai records daily active usage at the gateway and provides per-app and
+per-user adoption analytics, including an activity heatmap, most-used apps, and
+power users.
+
+### Is Menagerai an identity provider or deployment platform?
+
+Neither. Bring your existing OIDC identity provider and deploy apps using your
+existing PaaS or infrastructure. Menagerai sits between them as the app catalog,
+authorization, and usage-visibility layer.
 
 ## Contributing
 
