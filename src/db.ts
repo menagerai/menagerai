@@ -38,16 +38,15 @@ export async function connect(): Promise<void> {
       audit: db.collection('audit_logs'),
       usageDaily: db.collection('usage_daily'),
       apiKeys: db.collection('api_keys'),
-      settings: db.collection('settings'),
     } as unknown as Collections;
   } else {
     sqliteBackend = openSqlite(config.sqlitePath);
     col = sqliteBackend.col;
   }
   await ensureIndexes();
-  // Resolve identity-provider config (env, else the settings store) into its cache
-  // now that `col` is live, so the sync gates are populated before any request.
-  await refreshProviderConfig();
+  // Resolve identity-provider config from the environment into its cache so the
+  // synchronous provider gates are populated before any request is served.
+  refreshProviderConfig();
 }
 
 // Index/uniqueness contract, applied to whichever backend is active. On SQLite,
@@ -72,8 +71,6 @@ export async function ensureIndexes(): Promise<void> {
   // the admin's "my keys" list.
   await col.apiKeys.createIndex({ token_hash: 1 }, { unique: true });
   await col.apiKeys.createIndex({ user_id: 1 });
-  // Settings: one document per fixed key (currently just 'provider').
-  await col.settings.createIndex({ key: 1 }, { unique: true });
 }
 
 export async function close(): Promise<void> {

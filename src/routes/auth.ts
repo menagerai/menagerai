@@ -4,7 +4,6 @@ import { col } from '../db';
 import { audit } from '../audit';
 import { generators, getIdentityProvider } from '../idp';
 import { providerConfig } from '../idp/config';
-import { markSetupComplete } from '../bootstrap';
 import { clearSessionCookie, createSession, destroySession, getSessionId, setSessionCookie } from '../sessions';
 import { originOf, safeReturnTo, syncedNameFromClaims } from '../util';
 
@@ -19,8 +18,9 @@ export const authRouter = Router();
 authRouter.get('/login', async (req, res) => {
   const idp = getIdentityProvider();
   if (!idp) {
-    // No provider configured yet — send the operator through first-run setup.
-    res.redirect('/setup');
+    // Unreachable in normal operation: when the provider is unconfigured the
+    // startup config screen intercepts every page before this route runs. Guard anyway.
+    res.status(503).send('Identity provider is not configured.');
     return;
   }
   try {
@@ -104,8 +104,6 @@ authRouter.get('/callback', async (req, res) => {
     }
     await col.users.updateOne({ _id: user._id }, { $set: sets });
     user.logto_user_id = user.logto_user_id || sub;
-    // A system_admin signing in completes first-run setup (flip the guard now).
-    if (user.roles?.includes('system_admin')) markSetupComplete();
     if (syncedName !== undefined) {
       await audit({ actor_user_id: user._id, action: 'user.name_synced_from_logto', target_type: 'user', target_id: String(user._id), before: { name: user.name }, after: { name: syncedName } });
       user.name = syncedName;

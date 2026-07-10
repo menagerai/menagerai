@@ -10,9 +10,8 @@ import { authRouter } from './routes/auth';
 import { gatewayRouter } from './routes/gateway';
 import { portalRouter } from './routes/portal';
 import { adminRouter } from './routes/admin';
-import { setupRouter } from './routes/setup';
 import { buildApiRouter } from './api/mount';
-import { isSetupComplete } from './bootstrap';
+import { StartupCheck } from './startup';
 
 // Shared tail handlers: an explicit 404 so an unmatched path (e.g. /gateway/verify
 // when it is NOT mounted) returns "Not found" rather than falling through, plus a
@@ -30,7 +29,7 @@ function attachTail(app: express.Express): void {
 // public-routed port. /gateway/verify is mounted here only when opts.mountGateway
 // is set (legacy/additive rollout) — the secure end-state serves verify solely on
 // the internal gateway app below.
-export function buildPublicApp(opts: { mountGateway: boolean }): express.Express {
+export function buildPublicApp(opts: { mountGateway: boolean; startup: StartupCheck }): express.Express {
   const app = express();
   app.set('trust proxy', true);
   app.set('view engine', 'ejs');
@@ -62,20 +61,21 @@ export function buildPublicApp(opts: { mountGateway: boolean }): express.Express
   app.use(express.static(path.resolve(__dirname, '..', 'public'), { maxAge: '1d' }));
   app.use(loadUser);
 
-  // First-run setup gate: until an active admin has actually signed in, funnel every
-  // request to the /setup wizard — except the endpoints setup itself needs (sign-in,
-  // callback, health, gateway verify) and static assets (already served above).
-  app.use((req, res, next) => {
-    const p = req.path;
-    // Always-allowed paths skip the DB check entirely.
-    if (p === '/healthz' || p === '/login' || p === '/callback' || p.startsWith('/setup') || p.startsWith('/gateway')) {
-      return next();
-    }
-    isSetupComplete()
-      .then((done) => (done ? next() : res.redirect('/setup')))
-      .catch(next);
-  });
-  app.use(setupRouter); // /setup, /setup/provider, /setup/superadmin
+  // Startup config gate: when the Logto env/connection preflight failed, serve a
+  // plain-language configuration screen for every page instead of the portal —
+  // except /healthz (so the container stays up and doesn't crash-loop) and
+  // /gateway (so ForwardAuth gets a real verify response, not an HTML page).
+  if (!opts.startup.ok) {
+    app.use((req, res, next) => {
+      const p = req.path;
+      if (p === '/healthz' || p.startsWith('/gateway')) return next();
+      res.status(503).render('config-error', {
+        title: 'Configuration required',
+        problems: opts.startup.problems,
+        checkedAt: opts.startup.checkedAt,
+      });
+    });
+  }
 
   if (opts.mountGateway) app.use(gatewayRouter); // /gateway/verify
   app.use(authRouter); // /login /callback /logout

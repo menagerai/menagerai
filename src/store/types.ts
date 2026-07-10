@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { ApiKey, AppDoc, AuditLog, EmailAllowRule, Role, SessionDoc, SettingsDoc, UsageDaily, User } from '../types';
+import { ApiKey, AppDoc, AuditLog, EmailAllowRule, Role, SessionDoc, UsageDaily, User } from '../types';
 import { Filter, UpdateDoc } from './mongoql';
 
 // The narrow slice of the MongoDB collection API the app actually uses. Both the
@@ -59,7 +59,6 @@ export interface Collections {
   audit: ICollection<AuditLog>;
   usageDaily: ICollection<UsageDaily>;
   apiKeys: ICollection<ApiKey>;
-  settings: ICollection<SettingsDoc>;
 }
 
 // A backend: the live collections plus lifecycle hooks.

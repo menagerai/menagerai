@@ -6,7 +6,7 @@ import { IdentityProvider, Provisioning } from './types';
 // Logto — the one predefined IdentityProvider. Holds all Logto-specific shapes
 // (the `/oidc` discovery suffix, the ES384 id-token default, the `/oidc/me`
 // userinfo endpoint, and the Management API paths) behind the generic interface.
-// Built from a resolved ProviderConfig (env or the settings store) — see idp/config.ts.
+// Built from a resolved ProviderConfig (from the LOGTO_* env vars) — see idp/config.ts.
 export function createLogtoProvider(cfg: ProviderConfig): IdentityProvider {
   let cachedClient: Client | null = null;
 

@@ -1,16 +1,9 @@
-import { col } from '../db';
-import { decryptSecret } from '../crypto';
-import { SettingsDoc } from '../types';
-
-// The identity-provider configuration resolver. Owns ALL provider config, resolved
-// from two sources with env taking precedence:
-//   1. LOGTO_* env vars (12-factor override) — if the core three are set, they win.
-//   2. the `settings` doc (key 'provider') written by the first-run wizard, with
-//      secret fields decrypted via APP_ENCRYPTION_KEY.
-// Resolved into a module cache at boot (refreshProviderConfig, called from connect())
-// and re-resolved after the wizard writes, so UI-captured config takes effect without
-// a restart — the app never re-reads process.env after boot, so this cache is the
-// single live source of provider config.
+// The identity-provider configuration resolver. Provider config comes solely from
+// the LOGTO_* env vars (their presence and the live Logto connections are validated
+// at boot — see src/startup.ts). It is resolved into a module cache at boot
+// (refreshProviderConfig, called from connect()) so the synchronous gates below are
+// populated before any request; the app never re-reads process.env after boot, so
+// this cache is the single live source of provider config.
 
 export interface ProviderConfig {
   endpoint: string;
@@ -44,38 +37,9 @@ function fromEnv(): ProviderConfig | null {
   };
 }
 
-function fromSettings(doc: SettingsDoc): ProviderConfig | null {
-  const endpoint = (doc.endpoint || '').replace(/\/+$/, '');
-  if (!(endpoint && doc.appId && doc.appSecretEnc)) return null;
-  let m2m: ProviderConfig['m2m'];
-  if (doc.m2mAppId && doc.m2mAppSecretEnc && doc.managementResource) {
-    m2m = { appId: doc.m2mAppId, appSecret: decryptSecret(doc.m2mAppSecretEnc), managementResource: doc.managementResource };
-  }
-  return {
-    endpoint,
-    appId: doc.appId,
-    appSecret: decryptSecret(doc.appSecretEnc),
-    scopes: doc.scopes || 'openid profile email',
-    idTokenAlg: doc.idTokenAlg || undefined,
-    m2m,
-  };
-}
-
-// (Re)resolve provider config into the cache. Env wins; else the settings doc.
-export async function refreshProviderConfig(): Promise<void> {
-  const env = fromEnv();
-  if (env) {
-    cache = env;
-    return;
-  }
-  try {
-    const doc = await col.settings.findOne({ key: 'provider' });
-    cache = doc ? fromSettings(doc) : null;
-  } catch (err) {
-    // e.g. a stored secret exists but APP_ENCRYPTION_KEY is unset → can't decrypt.
-    console.error('provider config: failed to read settings store', err);
-    cache = null;
-  }
+// (Re)resolve provider config into the cache from the environment.
+export function refreshProviderConfig(): void {
+  cache = fromEnv();
 }
 
 export function providerConfig(): ProviderConfig | null {

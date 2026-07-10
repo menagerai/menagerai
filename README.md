@@ -62,6 +62,59 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
   dashboard.
 - **Works with the stack you already run** — bring your own OIDC provider and PaaS.
 
+## Quickstart
+
+Menagerai delegates authentication to **Logto** (cloud or self-hosted), so you bring a
+Logto tenant and hand Menagerai six values. The app boots either way — if anything is
+missing or unreachable it serves a **configuration screen naming exactly what to fix**,
+so there is nothing to guess.
+
+**1. In your Logto console, create two apps and one user:**
+
+- A **Traditional Web** (OIDC) app for the portal → copy its **App ID** and **App
+  secret**, and set its **Redirect URI** to `https://YOUR-PORTAL/callback`.
+- A **Machine-to-Machine** app → copy its **App ID** and **App secret**, grant it the
+  **Logto Management API access** role, and note the Management API **resource** URL
+  (e.g. `https://your-tenant.logto.app/api`). This lets Menagerai create Logto accounts
+  for users you add in the portal — no manual Logto steps afterward.
+- Ensure your admin email exists as a **user** in Logto (or enable self-registration).
+
+**2. Configure Menagerai:**
+
+```bash
+cp .env.example .env
+```
+
+Fill in the required values:
+
+```ini
+PORTAL_BASE_URL=https://YOUR-PORTAL          # or http://localhost:3000 for local
+SUPERADMIN_EMAIL=you@yourcompany.com         # must also exist in Logto
+LOGTO_ENDPOINT=https://your-tenant.logto.app
+LOGTO_APP_ID=...
+LOGTO_APP_SECRET=...
+LOGTO_M2M_APP_ID=...
+LOGTO_M2M_APP_SECRET=...
+LOGTO_MANAGEMENT_API_RESOURCE=https://your-tenant.logto.app/api
+```
+
+(For a local `http://localhost` run, also set `COOKIE_SECURE=false`.)
+
+**3. Run it:**
+
+```bash
+docker compose up -d --build
+```
+
+Open `PORTAL_BASE_URL` and sign in as `SUPERADMIN_EMAIL`. On the first valid startup
+Menagerai seeds your superadmin and a demo app, and your first sign-in claims the admin.
+Add further users right in the portal — with the Management API configured they are
+provisioned into Logto automatically.
+
+> Seeing a **"Configuration required"** screen? It lists each setting that is unset or
+> that Logto rejected (missing var, bad URL, wrong M2M role…). Fix your `.env`, then run
+> `docker compose up -d` again — settings are read only at startup.
+
 ## Design & architecture
 
 The system is documented in depth. These design docs are being published alongside the
@@ -79,12 +132,12 @@ Scope discipline keeps an access-control plane trustworthy:
 
 ## Roadmap
 
-- **Now** — license, hygiene, and public-repo preparation.
-- **Next** — generic first-run setup and a one-command `docker compose up` quickstart
-  with a bundled IdP and demo app.
-- **Then** — Coolify one-click template, live demo instance, nginx/Caddy adapters,
-  and bring-your-own-IdP recipes. (Storage runs on a bundled **SQLite** file by
-  default, with **MongoDB** as a pluggable alternative.)
+- **Now** — one-command `docker compose up` quickstart, env-validated startup with a
+  self-explaining config screen, and a seeded demo app (all in this repo).
+- **Next** — a Coolify one-click template and a hosted live demo instance.
+- **Then** — nginx/Caddy gateway adapters, and additional OIDC providers (Auth0,
+  authentik, Zitadel…) behind the existing provider abstraction. (Storage runs on a
+  bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative.)
 
 ## Contributing
 
