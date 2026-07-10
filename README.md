@@ -1,8 +1,8 @@
 <div align="center">
 
-# Ménagerai
+# Ménagerai — Taming your wild, vibe-coded apps 
 
-<img src="public/menagerie_icon_256.png" alt="Menagerai logo" width="140" />
+<img src="public/menagerie_icon_1024.png" alt="Menagerai logo" width="384" />
 
 **The open-source portal for your vibe-coded apps — one login, per-app access control, and usage analytics for every app you deploy.**
 
