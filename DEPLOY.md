@@ -52,16 +52,16 @@ derived automatically from the deployment's own domains (`COOLIFY_FQDN`) plus
    SQLITE_PATH=/app/data/menagerai.db     # primary store — put /app/data on a volume
    # MONGODB_CONN_STR=mongodb://...        # optional: use MongoDB instead of SQLite
    COOKIE_SECURE=true
-   SUPERADMIN_EMAIL=you@yourco.com    # the first admin — pin it here (not example.com)
-   APP_ENCRYPTION_KEY=<long random>   # needed to configure the IdP in the /setup UI
-   # IdP config is OPTIONAL here — configure Logto in the browser via /setup (§3), or
-   # set these to skip the wizard's provider step (env always overrides the UI):
-   # LOGTO_ENDPOINT=https://<tenant>.logto.app
-   # LOGTO_APP_ID=...
-   # LOGTO_APP_SECRET=...
-   # LOGTO_M2M_APP_ID=...            # optional: Management API (provision users in Logto)
-   # LOGTO_M2M_APP_SECRET=...
-   # LOGTO_MANAGEMENT_API_RESOURCE=...
+   SUPERADMIN_EMAIL=you@yourco.com    # the first admin — pin it here (must also exist in Logto)
+   # --- Logto: ALL REQUIRED, validated at boot (OIDC discovery + an M2M token + one
+   #     Management API read). If any is missing/unreachable the app serves a
+   #     "Configuration required" screen and seeds nothing until they all pass. ---
+   LOGTO_ENDPOINT=https://<tenant>.logto.app
+   LOGTO_APP_ID=...
+   LOGTO_APP_SECRET=...
+   LOGTO_M2M_APP_ID=...                          # Management API (M2M) app — lets Menagerai
+   LOGTO_M2M_APP_SECRET=...                       #   provision users into Logto when you add them
+   LOGTO_MANAGEMENT_API_RESOURCE=https://<tenant>.logto.app/api
    # optional — usage stats (defaults shown):
    TIMEZONE=UTC                 # business-day boundary for DAU counting
                                 #   (defaults to UTC, falling back to the container TZ)
@@ -85,22 +85,27 @@ derived automatically from the deployment's own domains (`COOLIFY_FQDN`) plus
 > set `MONGODB_CONN_STR` (and optionally `MONGODB_DB`); `SQLITE_PATH` is then
 > ignored. No replica set is required for either backend.
 
-## 3. First-run setup (in the browser)
+## 3. First-run bootstrap (automatic — no wizard)
 
-With `APP_ENCRYPTION_KEY` set (and no `LOGTO_*` env), just open the site — any URL
-redirects to **`/setup`** until an admin has signed in. The wizard:
+Configuration is env-only; there is no `/setup` step. On startup Menagerai validates
+the required env (`PORTAL_BASE_URL`, `SUPERADMIN_EMAIL`, and all six `LOGTO_*`) **and**
+the live Logto connections (OIDC discovery, an M2M token, and one authenticated
+Management API call), then:
 
-1. **Provider** — paste your Logto endpoint + App ID/secret (and optionally the
-   Management API M2M keys). Stored **encrypted** in the DB; takes effect immediately,
-   no redeploy. (Skipped if you set the `LOGTO_*` env vars instead.)
-2. **Administrator** — creates the `SUPERADMIN_EMAIL` account + a `demo` app.
-3. **Sign in to finish** — sign in with your IdP as the superadmin; that claims the
-   account and completes setup. From then on `/setup` redirects away.
+- **All valid** → it idempotently seeds the `SUPERADMIN_EMAIL` admin (email allow-rule
+  + `system_admin` role, unlinked) and a `demo` app on every boot. Open the site and
+  **sign in via Logto** as the superadmin — that first sign-in claims the seeded
+  account. That's it.
+- **Anything missing / unreachable** → the app still boots (`/healthz` stays green, so
+  no crash-loop) but every page serves a **"Configuration required"** screen naming
+  exactly which var is unset, malformed, or rejected by Logto. Fix it in Coolify and
+  redeploy (env is read only at startup).
 
-Make sure a user with `SUPERADMIN_EMAIL` exists in Logto (step 1.2).
+Make sure a user with `SUPERADMIN_EMAIL` exists in Logto (step 1) — or enable
+self-registration for that address — so the claim sign-in succeeds.
 
-**Alternative (env / scripted):** set the `LOGTO_*` env vars and run `npm run seed`
-in the container — idempotent; seeds the superadmin + `demo` app and prints the demo
+**Scripted equivalent:** with the env set, `npm run seed` in the container does the
+same idempotent seed (superadmin + `demo` app) and prints the demo
 `MENAGERAI_PROXY_SECRET`.
 
 **Break-glass recovery:** if the superadmin is locked out (lost account, IdP
