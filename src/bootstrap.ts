@@ -59,7 +59,14 @@ export async function ensureSuperadmin(email: string): Promise<void> {
 
 // Ensure a demo app exists (behind the gateway) and is granted to the superadmin,
 // so a fresh install has something to launch. Returns the app's proxy secret.
+//
+// Seeded ONLY on a genuinely fresh install (empty app registry). An established
+// deployment — e.g. a downstream fork that already runs real apps — gets nothing,
+// so a production portal never sprouts a stray demo tile. (This also matters
+// because seeding runs on every boot: an unconditional upsert would resurrect the
+// demo app on every restart even after an operator deleted it.)
 export async function ensureDemoApp(grantEmail: string): Promise<string | undefined> {
+  if (await col.apps.findOne({})) return undefined;
   const now = new Date();
   const existing = await col.apps.findOne({ key: 'demo' });
   const proxySecret = existing?.proxy_secret || crypto.randomBytes(32).toString('base64url');
