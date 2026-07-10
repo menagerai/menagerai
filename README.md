@@ -1,16 +1,19 @@
 <div align="center">
 
-# Menagerai — Open-source governance for enterprise vibe coding
+# Ménagerai — Taming your wild, vibe-coded apps.
 
 <img src="public/menagerie_icon_1024.png" alt="Menagerai logo" width="384" />
 
 **A self-hosted control plane for vibe-coded internal apps: one SSO portal,
 per-app RBAC, an app catalog, audit logs, and usage analytics.**
 
-*Taming your wild, vibe-coded apps.*
+[![CI](https://github.com/menagerai/menagerai/actions/workflows/ci.yml/badge.svg)](https://github.com/menagerai/menagerai/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
+
+</div>
 
 Vibe coding lets teams ship AI-generated internal tools in hours. At enterprise
-scale, that creates a new kind of shadow IT: apps running in production with
+scale, that creates a new kind of **shadow IT**: apps running in production with
 fragmented login, inconsistent access controls, and little visibility into who
 uses what.
 
@@ -20,11 +23,6 @@ OIDC identity provider, and manage app-level access from one portal. Employees
 sign in once; IT gets a centralized app inventory, default-deny authorization,
 auditable access management, and adoption data for every app — on infrastructure
 the organization controls.
-
-[![CI](https://github.com/menagerai/menagerai/actions/workflows/ci.yml/badge.svg)](https://github.com/menagerai/menagerai/actions/workflows/ci.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-
-</div>
 
 ---
 
@@ -56,6 +54,10 @@ them into one control plane for an organization's internal app portfolio.
 
 The **usage analytics** — a GitHub-style activity heatmap, power users, most-used apps — is the standout: it answers the manager's question ("is anyone using what we vibe-coded?") that pure-auth tools structurally cannot.
 
+<p align="center">
+  <img src="public/top_apps.png" alt="Usage analytics — most-used apps and active users" width="640" />
+</p>
+
 ## How the runtime governance layer works
 
 ```text
@@ -70,10 +72,6 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
 - **An admin UI** for users, roles, apps, access rules, an audit log, and the usage
   dashboard.
 - **Works with the stack you already run** — bring your own OIDC provider and PaaS.
-
-<p align="center">
-  <img src="public/top_apps.png" alt="Usage analytics — most-used apps and active users" width="640" />
-</p>
 
 ## Quickstart
 
@@ -138,10 +136,9 @@ Scope discipline keeps an access-control plane trustworthy:
 ## Roadmap
 
 - **Now** — one-command `docker compose up` quickstart, env-validated startup with a self-explaining config screen, and a seeded demo app (all in this repo).
-- **Next** — a Coolify one-click template and a hosted live demo instance.
-- **Then** — broader provider support (more gateways, identity providers, and database options over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today.
+- **Next** — broader provider support (more gateways, identity providers, and database options over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today.
 
-## Frequently asked questions
+## Frequently asked questions (FAQ)
 
 ### What is enterprise vibe coding governance?
 
