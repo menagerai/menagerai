@@ -25,8 +25,7 @@ derived automatically from the deployment's own domains (`COOLIFY_FQDN`) plus
      (`https://<tenant>.logto.app`).
 2. **Ensure the superadmin can sign in**: confirm a Logto user exists for
    `admin@example.com` (create it if not) with a verified email / working password.
-3. **(Optional now, needed for admin user-provisioning)** Create a **Machine-to-
-   Machine** app and grant it the **Logto Management API** role.
+3. **Create a Machine-to-Machine** app (or use existing, each Logto tenant comes with one) and grant it the **Logto Management API** role.
    - Copy its App ID/secret and the Management API resource
      (`https://<tenant-id>.logto.app/api` or `https://default.logto.app/api`).
    - Without this, Menagerai admin can manage its own records but cannot
