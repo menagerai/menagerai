@@ -71,6 +71,8 @@ Your apps enforce access.        (a ForwardAuth gateway injects trusted identity
 - **A ForwardAuth gateway** (Traefik today; more gateways over time) that authenticates and authorizes every request to a protected app and injects trusted identity headers.
 - **An admin UI** for users, roles, apps, access rules, an audit log, and the usage
   dashboard.
+- **A programmatic admin API** with personal API keys, generated OpenAPI docs, and
+  full audit attribution — suitable for agents, CI jobs, and internal automation.
 - **Works with the stack you already run** — bring your own OIDC provider and PaaS.
 
 ## Quickstart
@@ -117,6 +119,41 @@ Open `PORTAL_BASE_URL` and sign in as `SUPERADMIN_EMAIL`. On the first valid sta
 > Seeing a **"Configuration required"** screen? It lists each setting that is unset or that Logto rejected (missing var, bad URL, wrong M2M role…). Fix your `.env`, then run `docker compose up -d` again — settings are read only at startup.
 
 **Deploying for real?** See the [**Deployment & Bootstrap Runbook**](./DEPLOY.md) for the full production setup on Coolify — not just deploying Menagerai itself, but also **how to bring your own apps under its gateway** (per-app access control, trusted identity headers, and end-to-end verification).
+
+## Programmatic administration for agents and automation
+
+Everything an administrator can manage in the portal — users, roles, app registrations,
+role grants, per-user overrides, email allow rules, proxy secrets, and audit logs — is
+also available as a JSON API under `/api/admin`. This makes Menagerai usable from AI
+agents, CI jobs, provisioning workflows, and other internal integrations without browser
+automation.
+
+1. Sign in as an administrator and open **Admin → API access**.
+2. Create a named personal key and copy it immediately; the secret is shown only once.
+3. Send the key with the HTTP Bearer authentication scheme (recommended) or the
+   `X-API-Key` request header.
+
+```bash
+export MENAGERAI_URL="https://portal.example.com"
+export MENAGERAI_ADMIN_API_KEY="dvk_..."
+
+curl -sS "$MENAGERAI_URL/api/admin/users?q=jane" \
+  -H "$(printf 'X-API-Key: %s' "$MENAGERAI_ADMIN_API_KEY")" \
+  -H "Accept: application/json"
+```
+
+Keys carry the full admin authority of their owner, can be revoked independently, and
+are stored only as hashes. API-triggered changes are marked as API activity in the audit
+log and attributed to the key that performed them.
+
+For discovery and client generation, signed-in admins can use the interactive Swagger UI
+at `/admin/docs` or download the generated OpenAPI 3.1 document from
+`/admin/openapi.json`. Both are generated from the same route registry as the live API.
+
+Agent authors can start with the repository's white-label
+[**Menagerie Management skill**](./skills/menagerie-management/SKILL.md), which includes
+safe operating rules, the endpoint reference, common workflows, and a dependency-free
+Python helper.
 
 ## Design, architecture, and app onboarding
 
