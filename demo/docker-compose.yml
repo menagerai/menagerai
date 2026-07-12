@@ -42,16 +42,13 @@ services:
       SQLITE_PATH: "/tmp/menagerai-demo.db"
     # 3000 = public app (routed at "/" by the platform via the portal's FQDN);
     # 3001 = internal verify, reached only by the ForwardAuth middleware below.
+    # IMPORTANT: do NOT define the menagerai-auth middleware here. Coolify attaches
+    # a middleware to the router of the service it is DEFINED on — defining it on
+    # the portal would gate the portal itself, so "/" would hit /gateway/verify and
+    # return "Unknown path". The middleware is defined on the pulse service instead.
     labels:
       - traefik.enable=true
       - traefik.http.services.portal.loadbalancer.server.port=3000
-      # The gateway middleware every app router attaches. Traefik calls the portal's
-      # internal verify port and copies the four X-Menagerai-* headers onto the
-      # request it forwards to the app. Service-name address works because all
-      # services share the network (Coolify: "Connect To Predefined Network").
-      - traefik.http.middlewares.menagerai-auth.forwardauth.address=http://portal:3001/gateway/verify
-      - traefik.http.middlewares.menagerai-auth.forwardauth.trustForwardHeader=true
-      - traefik.http.middlewares.menagerai-auth.forwardauth.authResponseHeaders=X-Menagerai-User-Email,X-Menagerai-User-ID,X-Menagerai-Roles,X-Menagerai-Proxy-Secret
 
   pulse:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: pulse } }
@@ -62,9 +59,18 @@ services:
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
     labels:
       - traefik.enable=true
+      # The gateway middleware is DEFINED here (on an app, never on the portal — see
+      # the portal note above). Traefik reads labels from every container into one
+      # config, so the wiki/desk routers reference it too. It calls the portal's
+      # internal verify port and copies the four X-Menagerai-* headers onto the
+      # request forwarded to the app. Service-name address works because all
+      # services share the network (Coolify: "Connect To Predefined Network").
+      - traefik.http.middlewares.menagerai-auth.forwardauth.address=http://portal:3001/gateway/verify
+      - traefik.http.middlewares.menagerai-auth.forwardauth.trustForwardHeader=true
+      - traefik.http.middlewares.menagerai-auth.forwardauth.authResponseHeaders=X-Menagerai-User-Email,X-Menagerai-User-ID,X-Menagerai-Roles,X-Menagerai-Proxy-Secret
       # No stripprefix: the app tolerates the full path, and the gateway needs the
       # /apps/<key> prefix intact to identify the app. Priority beats the portal's
-      # "/" router. menagerai-auth runs first (it is the only middleware).
+      # "/" router.
       - "traefik.http.routers.pulse.rule=PathPrefix(`/apps/pulse`)"
       - traefik.http.routers.pulse.priority=100
       - traefik.http.routers.pulse.middlewares=menagerai-auth
