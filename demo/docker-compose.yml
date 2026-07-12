@@ -6,7 +6,8 @@
 #   demo.<your-domain>/            → portal (login, admin, launcher)
 #   demo.<your-domain>/apps/<key>  → the mock app, behind the menagerai-auth gateway
 #
-# On Coolify (one Docker-Compose resource):
+# On Coolify (one Docker-Compose resource): keep Base Directory "/" (repo root) and
+# Compose file "demo/docker-compose.yml", then:
 #   1. Set the portal service's domain (FQDN) to https://demo.<your-domain> — this
 #      is what issues the TLS cert and routes "/" to the portal.
 #   2. Turn ON "Connect To Predefined Network" for the resource, so Coolify's
@@ -15,16 +16,20 @@
 #      do NOT give pulse/wiki/desk their own domains; they are reached only through
 #      the /apps/<key> routers + the gateway.
 #
-# Locally, add the override which supplies a throwaway Traefik + the portal router:
-#   docker compose -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
+# Locally, run FROM THE REPO ROOT with the project directory pinned there (contexts
+# are root-relative) and add the override (a throwaway Traefik + the portal router):
+#   DEMO_SECRET=$(openssl rand -hex 24) docker compose --project-directory . \
+#     -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
 #   → http://localhost
 #
 # The database is in-container and resets DEMO_LIMIT_MINS after the first sign-in.
 
 services:
   portal:
+    # Build contexts are repo-root-relative: Coolify runs compose with the project
+    # directory set to the repo root, so paths resolve from there (NOT from demo/).
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -49,7 +54,7 @@ services:
       - traefik.http.middlewares.menagerai-auth.forwardauth.authResponseHeaders=X-Menagerai-User-Email,X-Menagerai-User-ID,X-Menagerai-Roles,X-Menagerai-Proxy-Secret
 
   pulse:
-    build: { context: ./apps, dockerfile: Dockerfile, args: { APP: pulse } }
+    build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: pulse } }
     restart: unless-stopped
     environment:
       DEMO_SECRET: "${DEMO_SECRET:?}"
@@ -66,7 +71,7 @@ services:
       - traefik.http.services.pulse.loadbalancer.server.port=3000
 
   wiki:
-    build: { context: ./apps, dockerfile: Dockerfile, args: { APP: wiki } }
+    build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: wiki } }
     restart: unless-stopped
     environment:
       DEMO_SECRET: "${DEMO_SECRET:?}"
@@ -80,7 +85,7 @@ services:
       - traefik.http.services.wiki.loadbalancer.server.port=3000
 
   desk:
-    build: { context: ./apps, dockerfile: Dockerfile, args: { APP: desk } }
+    build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: desk } }
     restart: unless-stopped
     environment:
       DEMO_SECRET: "${DEMO_SECRET:?}"

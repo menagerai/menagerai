@@ -21,11 +21,11 @@ Apps: **Pulse Analytics** (`pulse`), **Aviary Wiki** (`wiki`), **Perch Desk** (`
 
 ## Run locally (one command)
 
-Locally there is no platform Traefik, so add the override (a throwaway Traefik + the portal's `/` router that Coolify otherwise generates from the FQDN):
+Build contexts are repo-root-relative (that's how Coolify runs compose), so run **from the repo root** with the project directory pinned there, and add the override (a throwaway Traefik + the portal's `/` router that Coolify otherwise generates from the FQDN):
 
 ```sh
-cp demo/.env.example demo/.env      # set DEMO_SECRET (>=16 chars)
-docker compose -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
+DEMO_SECRET=$(openssl rand -hex 24) docker compose --project-directory . \
+  -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
 # open http://localhost  → pick a persona
 ```
 
@@ -35,7 +35,7 @@ Everything is in-container and ephemeral — nothing is persisted on purpose.
 
 Coolify's own Traefik serves the whole stack from the labels in `demo/docker-compose.yml`. Point DNS for `demo.<your-domain>` at Coolify first.
 
-1. **New resource → Docker Compose**, pointed at this repo, compose path `demo/docker-compose.yml`.
+1. **New resource → Docker Compose**, pointed at this repo. Keep **Base Directory `/`** (repo root) and **Compose file `demo/docker-compose.yml`** — the build contexts are root-relative, so the project directory must be the repo root (Coolify's default).
 2. **Domains — set ONE:** give the **`portal`** service the domain `https://demo.<your-domain>`. Leave **`pulse` / `wiki` / `desk` blank** — they are reached only at `/apps/<key>` through the gateway, never on their own URL. (The portal's FQDN issues the TLS cert and routes `/`; the app label routers share that host under `/apps/*`.)
 3. **Turn ON "Connect To Predefined Network"** for the resource, so Coolify's Traefik reads the app routers' labels and can reach the portal for ForwardAuth.
 4. Environment: `DEMO_SECRET` = a random string (≥16 chars; `openssl rand -hex 24`); `PORTAL_BASE_URL` = `https://demo.<your-domain>`; `COOKIE_SECURE=true` (you're on https); `DEMO_LIMIT_MINS` = reset window (default 10).

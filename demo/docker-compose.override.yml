@@ -1,9 +1,11 @@
 # LOCAL ONLY. On Coolify the platform's own Traefik serves the labels in the base
 # file; locally there is none, so this override adds a throwaway Traefik plus the
 # portal's "/" router (which, in production, Coolify generates from the portal's
-# FQDN). Compose does not auto-merge an override when you pass -f, so run both:
+# FQDN). Build contexts are root-relative, so run from the repo root with the
+# project directory pinned there and pass both files:
 #
-#   docker compose -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
+#   DEMO_SECRET=$(openssl rand -hex 24) docker compose --project-directory . \
+#     -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
 #   → http://localhost   (pick a persona)
 services:
   traefik:
