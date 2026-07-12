@@ -1,23 +1,25 @@
-# Self-contained Menagerai demo: portal + three mock apps, wired through the REAL
-# ForwardAuth gateway — using the host platform's OWN Traefik (Coolify's), not a
-# nested proxy. Routing and the gateway middleware are declared as Traefik labels,
-# so Coolify's Traefik serves everything under one domain:
+# Self-contained Menagerai demo: an internal Traefik + the portal + three mock apps,
+# wired through the REAL ForwardAuth gateway. Deterministic and platform-agnostic —
+# the internal Traefik owns all /apps/<key> routing from a baked-in static config
+# (demo/traefik/dynamic.yml), so there is NO stripprefix, NO Docker-label discovery,
+# and NO platform-generated routers to fight. The gateway always sees the full
+# /apps/<key> path.
 #
 #   demo.<your-domain>/            → portal (login, admin, launcher)
 #   demo.<your-domain>/apps/<key>  → the mock app, behind the menagerai-auth gateway
 #
 # On Coolify (one Docker-Compose resource): keep Base Directory "/" (repo root) and
 # Compose file "demo/docker-compose.yml", then:
-#   1. Set the portal service's domain (FQDN) to https://demo.<your-domain> — this
-#      is what issues the TLS cert and routes "/" to the portal.
-#   2. Turn ON "Connect To Predefined Network" for the resource, so Coolify's
-#      Traefik can read the app labels below and reach the portal for ForwardAuth.
-#   3. Set DEMO_SECRET (>=16 chars). The apps and portal are otherwise internal —
-#      do NOT give pulse/wiki/desk their own domains; they are reached only through
-#      the /apps/<key> routers + the gateway.
+#   1. Give the `traefik` service — and ONLY that service — the domain
+#      https://demo.<your-domain> (target port 80). Coolify auto-generates the
+#      http/https routers, TLS (letsencrypt), gzip and http→https redirect for it,
+#      then forwards the full request to this internal Traefik, which routes onward.
+#      Leave portal/pulse/wiki/desk with NO domain.
+#   2. Set DEMO_SECRET (>=16 chars) and PORTAL_BASE_URL=https://demo.<your-domain>,
+#      COOKIE_SECURE=true.
 #
-# Locally, run FROM THE REPO ROOT with the project directory pinned there (contexts
-# are root-relative) and add the override (a throwaway Traefik + the portal router):
+# Locally, run FROM THE REPO ROOT (contexts are root-relative) and add the override,
+# which publishes the internal Traefik on your host:
 #   DEMO_SECRET=$(openssl rand -hex 24) docker compose --project-directory . \
 #     -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
 #   → http://localhost
@@ -25,6 +27,20 @@
 # The database is in-container and resets DEMO_LIMIT_MINS after the first sign-in.
 
 services:
+  traefik:
+    # Routing config is baked into the image (see demo/traefik/Dockerfile), so there
+    # is nothing to bind-mount. No host port here — Coolify routes the demo domain to
+    # this service's :80; the local override publishes it for `docker compose up`.
+    build:
+      context: ./demo/traefik
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --entryPoints.web.address=:80
+    depends_on:
+      - portal
+
   portal:
     # Build contexts are repo-root-relative: Coolify runs compose with the project
     # directory set to the repo root, so paths resolve from there (NOT from demo/).
@@ -40,15 +56,6 @@ services:
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       GATEWAY_PUBLIC: "false"
       SQLITE_PATH: "/tmp/menagerai-demo.db"
-    # 3000 = public app (routed at "/" by the platform via the portal's FQDN);
-    # 3001 = internal verify, reached only by the ForwardAuth middleware below.
-    # IMPORTANT: do NOT define the menagerai-auth middleware here. Coolify attaches
-    # a middleware to the router of the service it is DEFINED on — defining it on
-    # the portal would gate the portal itself, so "/" would hit /gateway/verify and
-    # return "Unknown path". The middleware is defined on the pulse service instead.
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.portal.loadbalancer.server.port=3000
 
   pulse:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: pulse } }
@@ -57,24 +64,6 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/pulse
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
-    labels:
-      - traefik.enable=true
-      # The gateway middleware is DEFINED here (on an app, never on the portal — see
-      # the portal note above). Traefik reads labels from every container into one
-      # config, so the wiki/desk routers reference it too. It calls the portal's
-      # internal verify port and copies the four X-Menagerai-* headers onto the
-      # request forwarded to the app. Service-name address works because all
-      # services share the network (Coolify: "Connect To Predefined Network").
-      - traefik.http.middlewares.menagerai-auth.forwardauth.address=http://portal:3001/gateway/verify
-      - traefik.http.middlewares.menagerai-auth.forwardauth.trustForwardHeader=true
-      - traefik.http.middlewares.menagerai-auth.forwardauth.authResponseHeaders=X-Menagerai-User-Email,X-Menagerai-User-ID,X-Menagerai-Roles,X-Menagerai-Proxy-Secret
-      # No stripprefix: the app tolerates the full path, and the gateway needs the
-      # /apps/<key> prefix intact to identify the app. Priority beats the portal's
-      # "/" router.
-      - "traefik.http.routers.pulse.rule=PathPrefix(`/apps/pulse`)"
-      - traefik.http.routers.pulse.priority=100
-      - traefik.http.routers.pulse.middlewares=menagerai-auth
-      - traefik.http.services.pulse.loadbalancer.server.port=3000
 
   wiki:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: wiki } }
@@ -83,12 +72,6 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/wiki
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
-    labels:
-      - traefik.enable=true
-      - "traefik.http.routers.wiki.rule=PathPrefix(`/apps/wiki`)"
-      - traefik.http.routers.wiki.priority=100
-      - traefik.http.routers.wiki.middlewares=menagerai-auth
-      - traefik.http.services.wiki.loadbalancer.server.port=3000
 
   desk:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: desk } }
@@ -97,9 +80,3 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/desk
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
-    labels:
-      - traefik.enable=true
-      - "traefik.http.routers.desk.rule=PathPrefix(`/apps/desk`)"
-      - traefik.http.routers.desk.priority=100
-      - traefik.http.routers.desk.middlewares=menagerai-auth
-      - traefik.http.services.desk.loadbalancer.server.port=3000

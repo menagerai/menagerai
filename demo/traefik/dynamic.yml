@@ -1,0 +1,61 @@
+# Static routing for the demo's internal Traefik (file provider). Fully
+# self-contained — no Docker-label discovery, no Coolify-generated routers, and no
+# stripprefix — so the gateway ALWAYS sees the real /apps/<key> path (the thing that
+# was getting stripped and producing "Unknown path"). The platform (Coolify) only
+# routes the demo domain to this Traefik's :80; TLS/HTTPS is terminated at the
+# platform edge, so everything here is plain http on the internal compose network.
+#
+# Upstreams are compose service names (portal, pulse, wiki, desk) resolved over the
+# shared compose network. The portal's verify port (3001) is the ForwardAuth target.
+http:
+  routers:
+    portal:
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      service: portal
+      entryPoints: [web]
+    pulse:
+      rule: "PathPrefix(`/apps/pulse`)"
+      priority: 100
+      service: pulse
+      middlewares: [menagerai-auth]
+      entryPoints: [web]
+    wiki:
+      rule: "PathPrefix(`/apps/wiki`)"
+      priority: 100
+      service: wiki
+      middlewares: [menagerai-auth]
+      entryPoints: [web]
+    desk:
+      rule: "PathPrefix(`/apps/desk`)"
+      priority: 100
+      service: desk
+      middlewares: [menagerai-auth]
+      entryPoints: [web]
+  services:
+    portal:
+      loadBalancer:
+        servers:
+          - url: "http://portal:3000"
+    pulse:
+      loadBalancer:
+        servers:
+          - url: "http://pulse:3000"
+    wiki:
+      loadBalancer:
+        servers:
+          - url: "http://wiki:3000"
+    desk:
+      loadBalancer:
+        servers:
+          - url: "http://desk:3000"
+  middlewares:
+    menagerai-auth:
+      forwardAuth:
+        address: "http://portal:3001/gateway/verify"
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-Menagerai-User-Email
+          - X-Menagerai-User-ID
+          - X-Menagerai-Roles
+          - X-Menagerai-Proxy-Secret

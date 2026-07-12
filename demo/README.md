@@ -1,6 +1,6 @@
 # Menagerai demo
 
-A throwaway, self-resetting public demo of the portal — **the whole stack in one deployment**: the portal + three mock apps, wired through the real ForwardAuth gateway using the **host platform's own Traefik** (Coolify's — no nested proxy). It is not a simulation: every request to a mock app really passes `Traefik → portal /gateway/verify → identity headers → app`, and each app validates its per-app proxy secret before trusting the forwarded identity.
+A throwaway, self-resetting public demo of the portal — **the whole stack in one deployment**: an internal Traefik + the portal + three mock apps, wired through the real ForwardAuth gateway. It is not a simulation: every request to a mock app really passes `Traefik → portal /gateway/verify → identity headers → app`, and each app validates its per-app proxy secret before trusting the forwarded identity. The internal Traefik owns all `/apps/<key>` routing from a baked-in static config (`traefik/dynamic.yml`) — no stripprefix, no platform-generated routers — so the gateway always sees the real path. The platform (Coolify) only needs to route the demo domain to it.
 
 Sign-in is a **persona picker** (no Logto, no passwords). The database wipes back to a fixed seed `DEMO_LIMIT_MINS` minutes after the first sign-in, so visitors can't durably break anything.
 
@@ -21,7 +21,7 @@ Apps: **Pulse Analytics** (`pulse`), **Aviary Wiki** (`wiki`), **Perch Desk** (`
 
 ## Run locally (one command)
 
-Build contexts are repo-root-relative (that's how Coolify runs compose), so run **from the repo root** with the project directory pinned there, and add the override (a throwaway Traefik + the portal's `/` router that Coolify otherwise generates from the FQDN):
+Build contexts are repo-root-relative (that's how Coolify runs compose), so run **from the repo root** with the project directory pinned there, and add the override (which publishes the internal Traefik on your host):
 
 ```sh
 DEMO_SECRET=$(openssl rand -hex 24) docker compose --project-directory . \
@@ -33,22 +33,21 @@ Everything is in-container and ephemeral — nothing is persisted on purpose.
 
 ## Deploy on Coolify (one resource, one domain)
 
-Coolify's own Traefik serves the whole stack from the labels in `demo/docker-compose.yml`. Point DNS for `demo.<your-domain>` at Coolify first.
+The internal Traefik serves the whole stack from its baked-in config; Coolify just points the domain at it. Point DNS for `demo.<your-domain>` at Coolify first.
 
 1. **New resource → Docker Compose**, pointed at this repo. Keep **Base Directory `/`** (repo root) and **Compose file `demo/docker-compose.yml`** — the build contexts are root-relative, so the project directory must be the repo root (Coolify's default).
-2. **Domains — set ONE:** give the **`portal`** service the domain `https://demo.<your-domain>`. Leave **`pulse` / `wiki` / `desk` blank** — they are reached only at `/apps/<key>` through the gateway, never on their own URL. (The portal's FQDN issues the TLS cert and routes `/`; the app label routers share that host under `/apps/*`.)
-3. **Turn ON "Connect To Predefined Network"** for the resource, so Coolify's Traefik reads the app routers' labels and can reach the portal for ForwardAuth.
-4. Environment: `DEMO_SECRET` = a random string (≥16 chars; `openssl rand -hex 24`); `PORTAL_BASE_URL` = `https://demo.<your-domain>`; `COOKIE_SECURE=true` (you're on https); `DEMO_LIMIT_MINS` = reset window (default 10).
-5. Deploy. No per-app domains, no secret copying — the apps derive their proxy secret from `DEMO_SECRET`, the same way the portal does.
+2. **Domains — set ONE:** give the **`traefik`** service the domain `https://demo.<your-domain>` with **target port `80`**. Coolify auto-generates the http/https routers, TLS (letsencrypt), gzip and http→https redirect for it — exactly the "flair" it gives any app — then forwards the full request to the internal Traefik. Leave **`portal` / `pulse` / `wiki` / `desk` blank**.
+3. Environment: `DEMO_SECRET` = a random string (≥16 chars; `openssl rand -hex 24`); `PORTAL_BASE_URL` = `https://demo.<your-domain>`; `COOKIE_SECURE=true` (you're on https); `DEMO_LIMIT_MINS` = reset window (default 10).
+4. Deploy. No per-app domains, no middleware editing, no server-level dynamic config, no secret copying — the apps derive their proxy secret from `DEMO_SECRET`, the same way the portal does.
 
 **Per-service URL, at a glance:**
 
 | Service | Coolify domain |
 |---|---|
-| `portal` | `https://demo.<your-domain>` |
-| `pulse` / `wiki` / `desk` | *(blank — routed at `/apps/<key>` by labels)* |
+| `traefik` | `https://demo.<your-domain>` (target port `80`) |
+| `portal` / `pulse` / `wiki` / `desk` | *(blank — internal; the Traefik above routes to them)* |
 
-> If a mock app loads over HTTP instead of HTTPS, add `traefik.http.routers.<key>.tls=true` to that service's labels (some Coolify setups don't default the label routers to the TLS entrypoint). If ForwardAuth can't reach `portal` by name, set `GATEWAY_PUBLIC=true` and point the middleware `address` at `https://demo.<your-domain>/gateway/verify` instead.
+> Why not give the portal the domain directly? Because then the apps at `/apps/<key>` would need Coolify's per-app FQDNs, which add a `stripprefix` ahead of the gateway — so `/gateway/verify` sees `/` and returns "Unknown path". The internal Traefik routes with the prefix intact, avoiding that entirely.
 
 ## How the reset works
 

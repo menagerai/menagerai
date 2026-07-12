@@ -7,7 +7,7 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
   <title><%= typeof title !== 'undefined' ? title : t('nav.brand') %></title>
   <style>
-    :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; }
+    :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; --demo-banner-h:0px; }
     * { box-sizing: border-box; }
     body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg);
            /* Stop mobile Safari/Chrome from auto-inflating text by content size,
@@ -15,7 +15,7 @@
            -webkit-text-size-adjust:100%; text-size-adjust:100%; }
     a { color:var(--accent); text-decoration:none; }
     a:hover { text-decoration:underline; }
-    .topbar { display:flex; align-items:center; justify-content:space-between; height:var(--topbar-h); padding:0 20px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:40; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; height:var(--topbar-h); padding:0 20px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:var(--demo-banner-h); z-index:40; }
     .topbar .brand { font-weight:700; }
     .topbar nav { display:flex; align-items:center; gap:10px; }
     .topbar nav a { margin-left:0; }
@@ -57,7 +57,7 @@
        screen's right edge (not the centered content column) and lines up with
        the panel that slides in from the right. Hidden while the panel is open —
        the panel carries its own × close, and the two would otherwise overlap. */
-    .nav-toggle { display:none; position:fixed; top:calc(var(--topbar-h) + 10px); right:16px; z-index:30; background:#fff; border:1px solid var(--line); border-radius:6px; padding:2px 9px; font-size:18px; line-height:1.3; cursor:pointer; }
+    .nav-toggle { display:none; position:fixed; top:calc(var(--demo-banner-h) + var(--topbar-h) + 10px); right:16px; z-index:30; background:#fff; border:1px solid var(--line); border-radius:6px; padding:2px 9px; font-size:18px; line-height:1.3; cursor:pointer; }
     body.has-sidebar .nav-toggle { display:inline-flex; align-items:center; gap:6px; }
     body.has-sidebar.nav-open .nav-toggle { display:none; }
     .nav-toggle .label { font-size:13px; }
@@ -75,7 +75,7 @@
     /* When open, the panel overlays the content as an off-canvas drawer from the
        right at every width, so it never pushes the main content aside. The
        toggle/× collapse it; nav-close (absolute) anchors to this fixed box. */
-    body.nav-open .sidebar { display:block; position:fixed; top:var(--topbar-h); right:0; left:auto; bottom:0;
+    body.nav-open .sidebar { display:block; position:fixed; top:calc(var(--demo-banner-h) + var(--topbar-h)); right:0; left:auto; bottom:0;
             z-index:35; width:250px; box-shadow:-2px 0 14px rgba(0,0,0,.14); overflow-y:auto; }
     .sidebar nav a { display:block; padding:8px 12px; border-radius:6px; color:var(--fg); margin-left:0; }
     .sidebar nav a:hover { background:var(--bg); text-decoration:none; }
@@ -196,7 +196,7 @@
     .info:hover::after, .info:focus::after { opacity:1; visibility:visible; }
     /* Toasts: transient, color-keyed confirmations injected by foot.ejs from the
        flash query params, fixed top-center below the topbar, auto-dismiss ~5s. */
-    .toast-wrap { position:fixed; top:calc(var(--topbar-h) + 12px); left:50%; transform:translateX(-50%); z-index:60;
+    .toast-wrap { position:fixed; top:calc(var(--demo-banner-h) + var(--topbar-h) + 12px); left:50%; transform:translateX(-50%); z-index:60;
             display:flex; flex-direction:column; gap:8px; max-width:360px; }
     .toast { display:flex; align-items:flex-start; gap:8px; padding:11px 13px; border-radius:8px;
             border:1px solid; box-shadow:0 6px 20px rgba(0,0,0,.12); font-size:13px; line-height:1.45;
@@ -225,8 +225,11 @@
     @keyframes spinPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
     /* Demo-mode banner: a thin strip above the topbar announcing the throwaway
        nature of the deployment and (once armed) counting down to the next reset. */
-    .demo-banner { background:#fffbeb; border-bottom:1px solid #f59e0b; color:#92400e;
-            font-size:13px; text-align:center; padding:6px 14px; }
+    /* Pinned above the topbar. Its height is published to --demo-banner-h (JS
+       below) so the sticky topbar and the fixed admin-panel toggle / sidebar /
+       toasts all offset beneath it instead of being overlapped. */
+    .demo-banner { position:sticky; top:0; z-index:45; background:#fffbeb; border-bottom:1px solid #f59e0b;
+            color:#92400e; font-size:13px; text-align:center; padding:6px 14px; }
     .demo-banner .demo-countdown { font-variant-numeric:tabular-nums; }
   </style>
 </head>
@@ -248,14 +251,21 @@
     </div>
     <script>
       (function () {
-        var b = document.querySelector('.demo-banner[data-reset-at]');
+        var b = document.querySelector('.demo-banner');
         if (!b) return;
-        var target = parseInt(b.getAttribute('data-reset-at'), 10);
+        // Publish the banner's real height so the sticky topbar and fixed
+        // toggle/sidebar/toasts offset beneath it (handles wrapping on mobile).
+        function setH() { document.documentElement.style.setProperty('--demo-banner-h', b.offsetHeight + 'px'); }
+        setH();
+        window.addEventListener('resize', setH);
+        var raw = b.getAttribute('data-reset-at');
+        if (!raw) return; // idle banner: height only, no countdown
+        var target = parseInt(raw, 10);
         var out = b.querySelector('.demo-countdown');
         var resetting = <%- JSON.stringify(t('demo.resetting')) %>;
         function tick() {
           var ms = target - Date.now();
-          if (ms <= 0) { b.textContent = resetting; setTimeout(function () { location.reload(); }, 3000); return; }
+          if (ms <= 0) { b.textContent = resetting; setH(); setTimeout(function () { location.reload(); }, 3000); return; }
           var s = Math.floor(ms / 1000), m = Math.floor(s / 60); s = s % 60;
           if (out) out.textContent = m + ':' + (s < 10 ? '0' : '') + s;
           setTimeout(tick, 1000);
