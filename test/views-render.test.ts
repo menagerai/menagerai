@@ -31,6 +31,20 @@ const appDoc = {
 // would otherwise only surface on a live page hit.
 const cases: [string, Record<string, unknown>][] = [
   ['launcher.ejs', { user, isAdmin: false, apps: [{ key: 'demo', name: 'Demo', url: '/apps/demo' }] }],
+  // Demo persona picker (bare page, no session yet) + the idle demo banner.
+  [
+    'demo-login.ejs',
+    {
+      user: null,
+      isAdmin: false,
+      demoMode: true,
+      demoResetAt: null,
+      next: '/',
+      personas: [{ key: 'bo', email: 'bo@demo.menagerai.dev', name: 'Bo (Analyst)', roles: ['analyst'], overrides: [] }],
+    },
+  ],
+  // Armed demo banner (countdown branch) rendered on the launcher.
+  ['launcher.ejs', { user, isAdmin: false, apps: [], demoMode: true, demoResetAt: 1893456000000 }],
   ['no-access.ejs', { user: null, app: 'demo', reason: null }],
   ['no-access.ejs', { user, app: null, reason: 'not_provisioned' }],
   ['admin/users.ejs', { user, isAdmin: true, users: [], q: '', managementConfigured: false, msg: null }],

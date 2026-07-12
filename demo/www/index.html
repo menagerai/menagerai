@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Menagerai — tame your wild, vibe-coded apps</title>
+  <meta name="description" content="Menagerai is a self-hosted control plane that puts one SSO login, per-app access control, and usage analytics in front of the internal apps your team ships — without rebuilding their auth." />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
+  <style>
+    :root {
+      --bg:#0b1020; --panel:#0f1730; --fg:#e5e9f5; --muted:#9aa6c4; --line:#20294a;
+      --accent:#5b8cff; --accent-2:#8f6bff; --card:#ffffff; --card-fg:#1f2937; --card-muted:#6b7280; --card-line:#e5e7eb;
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+           color:var(--fg); background:var(--bg); -webkit-font-smoothing:antialiased; }
+    a { color:inherit; text-decoration:none; }
+    .container { max-width:1040px; margin:0 auto; padding:0 22px; }
+
+    /* Nav */
+    nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+    .wordmark { font-weight:800; font-size:19px; letter-spacing:-.01em; }
+    .wordmark .dot { color:var(--accent); }
+    nav .links { display:flex; gap:22px; align-items:center; font-size:14px; color:var(--muted); }
+    nav .links a:hover { color:var(--fg); }
+
+    /* Hero */
+    .hero { position:relative; overflow:hidden; padding:48px 0 72px; text-align:center;
+            background:radial-gradient(1100px 480px at 50% -8%, rgba(91,140,255,.22), transparent 60%),
+                       radial-gradient(760px 420px at 85% 0%, rgba(143,107,255,.16), transparent 55%); }
+    .hero .logo { width:112px; height:112px; border-radius:26px; margin:0 auto 24px; display:block;
+                  box-shadow:0 18px 50px rgba(63,111,230,.4); }
+    .eyebrow { display:inline-block; font-size:12.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+               border:1px solid var(--line); border-radius:999px; padding:5px 13px; margin-bottom:22px; }
+    h1 { font-size:clamp(32px, 6vw, 54px); line-height:1.06; letter-spacing:-.02em; margin:0 auto 18px; max-width:15ch;
+         background:linear-gradient(180deg,#fff,#c7d2f5); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .lede { font-size:clamp(16px,2.2vw,19px); color:var(--muted); max-width:72ch; margin:0 auto 30px; }
+    .cta { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+    .btn { display:inline-flex; align-items:center; gap:9px; padding:13px 22px; border-radius:11px; font-weight:600; font-size:15px;
+           border:1px solid transparent; transition:transform .06s ease, box-shadow .2s ease, background .2s ease; }
+    .btn:active { transform:translateY(1px); }
+    .btn.primary { background:linear-gradient(180deg,var(--accent),#3f6fe6); color:#fff; box-shadow:0 8px 26px rgba(63,111,230,.4); }
+    .btn.primary:hover { box-shadow:0 10px 34px rgba(63,111,230,.55); }
+    .btn.ghost { background:rgba(255,255,255,.04); border-color:var(--line); color:var(--fg); }
+    .btn.ghost:hover { background:rgba(255,255,255,.08); }
+    .hero .note { margin-top:18px; font-size:13px; color:var(--muted); }
+
+    /* Sections on light panels */
+    .section { background:var(--card); color:var(--card-fg); }
+    .section .container { padding-top:64px; padding-bottom:64px; }
+    .kicker { font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
+    .section h2 { font-size:clamp(24px,3.5vw,32px); letter-spacing:-.01em; margin:8px 0 14px; }
+    .section p.sub { color:var(--card-muted); max-width:88ch; margin:0 0 34px; }
+
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px; }
+    .card { background:#fff; border:1px solid var(--card-line); border-radius:14px; padding:22px; }
+    .card h3 { margin:0 0 8px; font-size:17px; }
+    .card p { margin:0; color:var(--card-muted); font-size:14.5px; }
+    .card .ic { width:38px; height:38px; border-radius:10px; display:grid; place-items:center; margin-bottom:14px;
+                background:linear-gradient(180deg,rgba(91,140,255,.16),rgba(143,107,255,.14)); font-size:19px; }
+
+    /* How it works */
+    .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; counter-reset:step; }
+    .step { position:relative; padding:22px; border:1px solid var(--card-line); border-radius:14px; background:#fff; }
+    .step::before { counter-increment:step; content:counter(step); position:absolute; top:-14px; left:22px; width:28px; height:28px;
+                    border-radius:50%; background:linear-gradient(180deg,var(--accent),#3f6fe6); color:#fff; font-weight:700;
+                    font-size:14px; display:grid; place-items:center; box-shadow:0 4px 12px rgba(63,111,230,.4); }
+    .step h3 { margin:8px 0 6px; font-size:16px; }
+    .step p { margin:0; color:var(--card-muted); font-size:14px; }
+
+    .notline { margin-top:34px; padding:18px 20px; border:1px dashed var(--card-line); border-radius:12px; color:var(--card-muted); font-size:14.5px; }
+    .notline strong { color:var(--card-fg); }
+
+    /* Agent-ready band (dark, between the white sections) */
+    .agents { background:linear-gradient(180deg,#0f1730,#0b1020); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .agents .container { padding:58px 22px; text-align:center; }
+    .agents h2 { font-size:clamp(24px,3.5vw,32px); letter-spacing:-.01em; margin:8px 0 14px; color:#fff; }
+    .agents p { color:var(--muted); max-width:80ch; margin:0 auto 24px; }
+    .agents code { background:rgba(255,255,255,.09); color:#dbe3ff; padding:1px 6px; border-radius:5px; font-size:.9em; }
+    .chips { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:9px 16px; font-size:14px; color:var(--fg);
+            background:rgba(255,255,255,.05); }
+
+    /* Footer */
+    footer { padding:40px 0; }
+    footer .container { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:14px; }
+    footer a:hover { color:var(--fg); }
+    footer .fl { display:flex; gap:20px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <header class="container">
+    <nav>
+      <div class="wordmark">Ménagerai<span class="dot">.</span></div>
+      <div class="links">
+        <a href="#what">What it is</a>
+        <a href="#how">How it works</a>
+        <a href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <img class="logo" src="logo.png" alt="Menagerai logo" />
+      <span class="eyebrow">Open source · AGPL-3.0 · Self-hosted</span>
+      <h1>Tame your wild, vibe-coded apps</h1>
+      <p class="lede">Menagerai is a self-hosted control plane that puts <strong>one SSO login</strong>, <strong>per-app access control</strong>, and <strong>usage analytics</strong> in front of the internal apps your team ships — without rebuilding their auth.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://demo.menager.ai">Try the live demo →</a>
+        <a class="btn ghost" href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="note">The live demo resets every few minutes — sign in as any persona and poke around freely.</div>
+    </div>
+  </section>
+
+  <section class="section" id="what">
+    <div class="container">
+      <div class="kicker">The problem</div>
+      <h2>Vibe coding ships internal tools in hours — and quietly creates shadow IT</h2>
+      <p class="sub">Fragmented logins, inconsistent access controls, and no visibility into who uses what. Menagerai adds governance <em>after</em> deployment: put existing apps behind its gateway, connect your identity provider, and manage everything from one portal.</p>
+      <div class="cards">
+        <div class="card">
+          <div class="ic">🔑</div>
+          <h3>One login for everything</h3>
+          <p>Single sign-on across every app behind the gateway, backed by the OIDC provider you already trust. Menagerai never stores credentials — it isn't an identity provider.</p>
+        </div>
+        <div class="card">
+          <div class="ic">🛡️</div>
+          <h3>Default-deny access, managed in a UI</h3>
+          <p>Per-app RBAC with role grants and per-user overrides, enforced by a ForwardAuth gateway that injects trusted identity headers into each allowed request.</p>
+        </div>
+        <div class="card">
+          <div class="ic">📊</div>
+          <h3>See what's actually used</h3>
+          <p>Per-app and per-user adoption analytics — an activity heatmap, power users, and most-used apps — so you finally know if anyone opens what you built.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="agents">
+    <div class="container">
+      <div class="kicker">Built for AI agents</div>
+      <h2>Agent-ready from day one</h2>
+      <p>Menagerai isn't just for humans. Every admin action — users, roles, app grants, per-user overrides, audit — is a JSON API under <code>/api/admin</code>, secured by personal API keys with full audit attribution. It ships with generated OpenAPI docs and an agent-ready skills package, so AI agents, CI jobs, and internal automation can drive the whole portal without browser automation.</p>
+      <div class="chips">
+        <span class="chip">Management API · /api/admin</span>
+        <span class="chip">Personal API keys</span>
+        <span class="chip">Generated OpenAPI docs</span>
+        <span class="chip">Agent skills package</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how" style="background:#f6f8fe;">
+    <div class="container">
+      <div class="kicker">How it works</div>
+      <h2>Three layers, cleanly separated</h2>
+      <p class="sub">Menagerai sits between the identity provider you bring and the apps you deploy — owning the catalog, authorization, and usage visibility.</p>
+      <div class="steps">
+        <div class="step">
+          <h3>Your IdP proves identity</h3>
+          <p>Bring your own OIDC provider (Logto supported today). Authentication is delegated — no credentials ever touch Menagerai.</p>
+        </div>
+        <div class="step">
+          <h3>Menagerai decides authorization</h3>
+          <p>Default-deny RBAC — status → user-deny → user-allow → role-allow — managed entirely in the admin UI.</p>
+        </div>
+        <div class="step">
+          <h3>Your apps enforce access</h3>
+          <p>A ForwardAuth gateway authorizes every request and forwards trusted identity headers. Simple apps need no login of their own.</p>
+        </div>
+      </div>
+      <div class="notline"><strong>Not</strong> an identity provider, <strong>not</strong> a PaaS, <strong>not</strong> multi-tenant. It governs the apps you deploy on the infrastructure you already run.</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="wordmark">Ménagerai<span class="dot">.</span></div>
+      <div class="fl">
+        <a href="https://demo.menager.ai">Live demo</a>
+        <a href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/menagerai/menagerai/blob/main/LICENSE" target="_blank" rel="noopener">License (AGPL-3.0)</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

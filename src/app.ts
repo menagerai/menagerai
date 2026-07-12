@@ -12,6 +12,8 @@ import { portalRouter } from './routes/portal';
 import { adminRouter } from './routes/admin';
 import { buildApiRouter } from './api/mount';
 import { StartupCheck } from './startup';
+import { demoAuthRouter } from './demo/auth';
+import { demoLocals } from './demo/reset';
 
 // Shared tail handlers: an explicit 404 so an unmatched path (e.g. /gateway/verify
 // when it is NOT mounted) returns "Not found" rather than falling through, plus a
@@ -55,6 +57,9 @@ export function buildPublicApp(opts: { mountGateway: boolean; startup: StartupCh
       formatInstant(value, config.timezone, opts);
     next();
   });
+  // Demo mode: expose demoMode + next-reset epoch to every template (countdown
+  // banner in partials/head.ejs). Before the routers so every render sees it.
+  if (config.demoMode) app.use(demoLocals);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));
   // Public static assets (favicon, etc.) — served before auth, no identity needed.
@@ -78,7 +83,9 @@ export function buildPublicApp(opts: { mountGateway: boolean; startup: StartupCh
   }
 
   if (opts.mountGateway) app.use(gatewayRouter); // /gateway/verify
-  app.use(authRouter); // /login /callback /logout
+  // Demo mode swaps OIDC sign-in for the persona picker at the same /login,/logout
+  // paths, so every existing redirect keeps working.
+  app.use(config.demoMode ? demoAuthRouter : authRouter); // /login /callback /logout
   app.use(accessRouter); // /api/access/*
   app.use('/api/admin', buildApiRouter()); // programmatic admin API (API-key auth) → JSON
   app.use('/admin', adminRouter); // admin UI + actions

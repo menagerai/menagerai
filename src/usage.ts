@@ -30,6 +30,15 @@ function toOid(id: ObjectId | string): ObjectId {
 const seen = new Set<string>();
 let seenDay = '';
 
+// Drop the in-process write-suppression set. Used by the demo-mode reset, which
+// wipes usage_daily: without this, `seen` would keep suppressing the DB write for
+// any (user, app) already recorded today, so post-reset activity would silently
+// not re-appear until the day rolls over. A no-op for normal operation.
+export function clearUsageDedup(): void {
+  seen.clear();
+  seenDay = '';
+}
+
 // Record one successful access. Best-effort, like audit(): never throws, so the
 // gateway can fire-and-forget it without awaiting and without risking the request.
 export async function recordUsage(
