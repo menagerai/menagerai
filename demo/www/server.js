@@ -1,21 +1,15 @@
 'use strict';
-// Standalone landing site for the Menagerai project. Zero dependencies. Serves one
-// static page with two configurable links (the live demo and the GitHub repo) plus
-// a /healthz probe. Deployed on its OWN, separate from the demo docker-compose, so
-// the marketing site stays up even while the demo stack is being redeployed.
+// Standalone landing site for the Menagerai project. Zero dependencies, zero
+// config — serves one static HTML page (links hardcoded in index.html), the logo
+// and favicon, and a /healthz probe. Deployed on its OWN, separate from the demo
+// docker-compose, so the marketing site stays up even while the demo redeploys.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const DEMO_URL = process.env.DEMO_URL || 'https://demo.menager.ai';
-const GITHUB_URL = process.env.GITHUB_URL || 'https://github.com/menagerai/menagerai';
 
-const HTML = fs
-  .readFileSync(path.join(__dirname, 'index.html'), 'utf8')
-  .split('{{DEMO_URL}}').join(DEMO_URL)
-  .split('{{GITHUB_URL}}').join(GITHUB_URL);
-
+const HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 // Static image assets, read once at startup and served with a long cache TTL.
 const ASSETS = {
   '/logo.png': fs.readFileSync(path.join(__dirname, 'logo.png')),
@@ -39,5 +33,5 @@ const server = http.createServer(function (req, res) {
 });
 
 server.listen(PORT, function () {
-  console.log('menagerai landing listening on :' + PORT + ' (demo=' + DEMO_URL + ')');
+  console.log('menagerai landing listening on :' + PORT);
 });
