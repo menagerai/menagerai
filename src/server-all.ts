@@ -3,17 +3,28 @@ import { config } from './config';
 import { connect } from './db';
 import { ensureDemoApp, ensureSuperadmin } from './bootstrap';
 import { logStartupProblems, runStartupChecks } from './startup';
+import { runDemoStartupChecks } from './demo/startup';
+import { logDemoSecrets } from './demo/seed';
+import { performReset } from './demo/reset';
 
 async function main(): Promise<void> {
   await connect();
 
-  // Validate env + live Logto connections BEFORE any bootstrap writes. Seeding runs
-  // only when everything is valid; a misconfigured instance boots but serves the
-  // configuration screen (see buildPublicApp) and writes no bootstrap state.
-  const startup = await runStartupChecks();
+  // Validate env BEFORE any bootstrap writes. Seeding runs only when valid; a
+  // misconfigured instance boots but serves the configuration screen and writes
+  // nothing. Demo mode uses a synchronous, IdP-free preflight instead of Logto's.
+  const startup = config.demoMode ? runDemoStartupChecks() : await runStartupChecks();
   if (startup.ok) {
-    await ensureSuperadmin(config.superadminEmail);
-    await ensureDemoApp(config.superadminEmail);
+    if (config.demoMode) {
+      // Always come up in the canonical seed: wipe + reseed on every boot (a
+      // restart loses the in-memory reset timer anyway). Do NOT run ensureDemoApp
+      // here — its empty-registry guard would fight the demo seed.
+      await performReset();
+      logDemoSecrets();
+    } else {
+      await ensureSuperadmin(config.superadminEmail);
+      await ensureDemoApp(config.superadminEmail);
+    }
   } else {
     logStartupProblems(startup);
   }

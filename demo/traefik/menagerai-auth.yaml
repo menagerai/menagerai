@@ -1,0 +1,15 @@
+# Traefik file-provider dynamic config: the ForwardAuth middleware every demo app
+# router attaches. Traefik calls the portal's internal verify port for each request
+# and copies the four X-Menagerai-* headers from the reply onto the request it then
+# forwards to the app. Mirrors DEPLOY.md §4.
+http:
+  middlewares:
+    menagerai-auth:
+      forwardAuth:
+        address: 'http://portal:3001/gateway/verify'
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-Menagerai-User-Email
+          - X-Menagerai-User-ID
+          - X-Menagerai-Roles
+          - X-Menagerai-Proxy-Secret

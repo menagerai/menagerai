@@ -339,6 +339,21 @@
     "sessionNotFound": "该会话已结束",
     "apiKeyRevoked": "API 密钥已吊销"
   },
+  "demo": {
+    "bannerIdle": "公开演示 — 首次登录几分钟后数据库将重置。",
+    "bannerArmed": "公开演示 — 重置倒计时",
+    "resetting": "正在重置演示…",
+    "loginTitle": "登录演示",
+    "loginIntro": "选择一个身份，从其视角体验门户。无需密码 — 这是一个会自动重置的一次性演示。",
+    "signInAs": "以 {name} 登录",
+    "rolesLabel": "角色",
+    "persona": {
+      "ada": "超级管理员：可访问所有应用及完整管理面板。",
+      "bo": "单一角色授权（分析师）— 仅可见 Pulse；其余默认拒绝。",
+      "cam": "编辑角色加上按用户的单独放行 — 可见 Wiki 和 Desk。",
+      "dee": "支持角色，但按用户的单独拒绝撤销了 Wiki — 仅可见 Desk。"
+    }
+  },
   "validate": {
     "publicPathsNotArray": "public_paths 必须是数组",
     "pathNotObject": "每个公共路径必须是对象",

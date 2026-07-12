@@ -223,6 +223,11 @@
       .toast .spinner { animation:spinPulse 1s ease-in-out infinite; }
     }
     @keyframes spinPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+    /* Demo-mode banner: a thin strip above the topbar announcing the throwaway
+       nature of the deployment and (once armed) counting down to the next reset. */
+    .demo-banner { background:#fffbeb; border-bottom:1px solid #f59e0b; color:#92400e;
+            font-size:13px; text-align:center; padding:6px 14px; }
+    .demo-banner .demo-countdown { font-variant-numeric:tabular-nums; }
   </style>
 </head>
 <% var _hasSidebar = (typeof isAdmin !== 'undefined' && isAdmin); %>
@@ -233,6 +238,32 @@
 <% var _wrapStyle = (typeof wrapStyle !== 'undefined' && wrapStyle) ? wrapStyle : ''; %>
 <% var _initial = (_who.trim().charAt(0) || '?').toUpperCase(); %>
 <body class="<%= _hasSidebar ? 'has-sidebar' : '' %>">
+  <% if (typeof demoMode !== 'undefined' && demoMode) { %>
+    <div class="demo-banner"<% if (typeof demoResetAt !== 'undefined' && demoResetAt) { %> data-reset-at="<%= demoResetAt %>"<% } %>>
+      <% if (typeof demoResetAt !== 'undefined' && demoResetAt) { %>
+        <span><%= t('demo.bannerArmed') %> <strong class="demo-countdown">—</strong></span>
+      <% } else { %>
+        <span><%= t('demo.bannerIdle') %></span>
+      <% } %>
+    </div>
+    <script>
+      (function () {
+        var b = document.querySelector('.demo-banner[data-reset-at]');
+        if (!b) return;
+        var target = parseInt(b.getAttribute('data-reset-at'), 10);
+        var out = b.querySelector('.demo-countdown');
+        var resetting = <%- JSON.stringify(t('demo.resetting')) %>;
+        function tick() {
+          var ms = target - Date.now();
+          if (ms <= 0) { b.textContent = resetting; setTimeout(function () { location.reload(); }, 3000); return; }
+          var s = Math.floor(ms / 1000), m = Math.floor(s / 60); s = s % 60;
+          if (out) out.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+          setTimeout(tick, 1000);
+        }
+        tick();
+      })();
+    </script>
+  <% } %>
   <div class="topbar">
     <div class="brand"><a href="/"><%= t('nav.brand') %></a></div>
     <nav>

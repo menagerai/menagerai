@@ -77,6 +77,23 @@ export const config = {
   // validated at boot; see src/startup.ts).
 
   superadminEmail: opt('SUPERADMIN_EMAIL', 'admin@example.com').toLowerCase(),
+
+  // ---- Demo mode ----
+  // A throwaway public demo of the portal. When true: authentication is a
+  // "sign in as <persona>" picker (no Logto/OIDC — the IdP is force-disabled),
+  // the boot preflight validates only PORTAL_BASE_URL + DEMO_SECRET, and the
+  // database is wiped back to a fixed seed DEMO_LIMIT_MINS minutes after the
+  // first sign-in following each reset. See src/demo/*. Off by default; this is
+  // an explicit opt-in, so the idiom is `=== 'true'` (not the opt-out `!== 'false'`).
+  demoMode: opt('DEMO_MODE') === 'true',
+  // Minutes from the first post-reset sign-in until the auto-reset fires.
+  // Clamped to a sane window so a bad value can't disable or DoS the timer.
+  demoLimitMins: Math.min(1440, Math.max(1, int('DEMO_LIMIT_MINS', 10))),
+  // Secret from which each demo app's proxy_secret is derived (HMAC). Keeps the
+  // derived secrets stable across resets without hardcoding them in the repo.
+  // Required (>=16 chars) in demo mode — validated by src/demo/startup.ts.
+  demoSecret: opt('DEMO_SECRET'),
+
   decisionCacheTtlMs: int('DECISION_CACHE_TTL_MS', 30_000),
   // App-registry cache on the verify hot path — same TTL semantics as the
   // decision cache (evicted proactively on app edits via evictAll()).

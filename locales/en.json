@@ -339,6 +339,21 @@
     "sessionNotFound": "That session has already ended",
     "apiKeyRevoked": "API key revoked"
   },
+  "demo": {
+    "bannerIdle": "Public demo — the database resets a few minutes after the first sign-in.",
+    "bannerArmed": "Public demo — resets in",
+    "resetting": "Resetting the demo…",
+    "loginTitle": "Sign in to the demo",
+    "loginIntro": "Pick a persona to explore the portal from their point of view. No password — this is a throwaway demo that resets itself.",
+    "signInAs": "Sign in as {name}",
+    "rolesLabel": "Roles",
+    "persona": {
+      "ada": "Superadmin: reaches every app and the full admin panel.",
+      "bo": "A single role grant (Analyst) — sees Pulse only; everything else is denied by default.",
+      "cam": "Editor role plus a per-user allow — sees Wiki and Desk.",
+      "dee": "Support role, but a per-user deny revokes Wiki — sees Desk only."
+    }
+  },
   "validate": {
     "publicPathsNotArray": "public_paths must be an array",
     "pathNotObject": "each public path must be an object",

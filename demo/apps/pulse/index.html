@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{APP_NAME}}</title>
+  <style>
+    :root { --accent:#2563eb; --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f9fafb; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+    .wrap { max-width:920px; margin:24px auto; padding:0 20px; }
+    .appbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .appbar .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); }
+    .appbar h1 { font-size:19px; margin:0; }
+    .appbar .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:9px; padding:1px 8px; }
+    .idcard { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
+    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    .idcard .email { font-size:19px; font-weight:700; margin:2px 0 6px; word-break:break-all; }
+    .idcard .meta { font-size:13px; color:var(--muted); }
+    .idcard code { background:#f3f4f6; padding:1px 6px; border-radius:4px; font-size:12px; }
+    .idcard .note { margin-top:10px; font-size:12px; color:var(--muted); line-height:1.5; }
+    .idcard .back { display:inline-block; margin-top:10px; color:var(--accent); text-decoration:none; font-size:13px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
+    .fake { opacity:.55; pointer-events:none; user-select:none; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+    .kpi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; }
+    .kpi .n { font-size:24px; font-weight:700; }
+    .kpi .l { font-size:12px; color:var(--muted); }
+    .bars { display:flex; align-items:flex-end; gap:10px; height:120px; margin-top:6px; }
+    .bars .b { flex:1; background:var(--accent); border-radius:4px 4px 0 0; opacity:.8; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); font-size:13px; }
+    th { font-size:11px; text-transform:uppercase; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="appbar"><span class="dot"></span><h1>{{APP_NAME}}</h1><span class="tag">DEMO</span></div>
+
+    <div class="idcard">
+      <div class="k">Signed in via Menagerai as</div>
+      <div class="email">{{EMAIL}}</div>
+      <div class="meta">User ID <code>{{USER_ID}}</code> &middot; Roles <code>{{ROLES}}</code></div>
+      <div class="note">These values arrived as <code>X-Menagerai-*</code> request headers, injected by the gateway <em>after</em> it authorized you to reach this app. This app ran no login of its own — it only displays the forwarded identity. The dashboard below is fake.</div>
+      <a class="back" href="{{PORTAL_URL}}">&larr; Back to portal</a>
+    </div>
+
+    <div class="kpis fake">
+      <div class="kpi"><div class="n">18,204</div><div class="l">Sessions (7d)</div></div>
+      <div class="kpi"><div class="n">3.9%</div><div class="l">Conversion</div></div>
+      <div class="kpi"><div class="n">1,042</div><div class="l">New users</div></div>
+      <div class="kpi"><div class="n">4m 12s</div><div class="l">Avg. session</div></div>
+    </div>
+
+    <div class="card fake">
+      <strong>Traffic — last 7 days</strong>
+      <div class="bars">
+        <div class="b" style="height:40%"></div><div class="b" style="height:65%"></div>
+        <div class="b" style="height:52%"></div><div class="b" style="height:80%"></div>
+        <div class="b" style="height:70%"></div><div class="b" style="height:95%"></div>
+        <div class="b" style="height:60%"></div>
+      </div>
+    </div>
+
+    <div class="card fake">
+      <strong>Top pages</strong>
+      <table>
+        <thead><tr><th>Path</th><th>Views</th><th>Bounce</th></tr></thead>
+        <tbody>
+          <tr><td>/</td><td>8,431</td><td>38%</td></tr>
+          <tr><td>/pricing</td><td>2,190</td><td>44%</td></tr>
+          <tr><td>/docs</td><td>1,872</td><td>29%</td></tr>
+          <tr><td>/blog/launch</td><td>1,304</td><td>51%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
