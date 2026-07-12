@@ -1,0 +1,27 @@
+# LOCAL ONLY. On Coolify the platform's own Traefik serves the labels in the base
+# file; locally there is none, so this override adds a throwaway Traefik plus the
+# portal's "/" router (which, in production, Coolify generates from the portal's
+# FQDN). Compose does not auto-merge an override when you pass -f, so run both:
+#
+#   docker compose -f demo/docker-compose.yml -f demo/docker-compose.override.yml up --build
+#   → http://localhost   (pick a persona)
+services:
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --entryPoints.web.address=:80
+    ports:
+      - "${DEMO_HTTP_PORT:-80}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  portal:
+    # Add the root router the platform would otherwise create from the FQDN. The
+    # app routers (priority 100) still win for /apps/<key>.
+    labels:
+      - "traefik.http.routers.portal.rule=PathPrefix(`/`)"
+      - traefik.http.routers.portal.priority=1
+      - traefik.http.routers.portal.entrypoints=web
