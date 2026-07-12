@@ -1,11 +1,8 @@
 # Authorization Semantics
 
-This document pins down the parts of the access-control model that must be
-unambiguous before any code is written: how an access decision is computed, who
-is allowed to ask the access-check endpoints, and how the answer is returned.
+This document pins down the parts of the access-control model that must be unambiguous before any code is written: how an access decision is computed, who is allowed to ask the access-check endpoints, and how the answer is returned.
 
-The data model lives in [`rbac-and-data-model.md`](rbac-and-data-model.md). This
-document defines the *behavior* over that model.
+The data model lives in [`rbac-and-data-model.md`](rbac-and-data-model.md). This document defines the *behavior* over that model.
 
 ## 1. The access decision
 
@@ -13,15 +10,9 @@ The core question every integration ultimately asks is:
 
 > For user `U` and app `A`, is access allowed?
 
-This is a **binary** decision — allow or deny. Menagerai performs only coarse,
-gate-level access control: it decides whether a user may *reach* an app at all.
-It does **not** model in-app roles or permissions. Any finer-grained
-authorization is each app's own responsibility, decided inside the app from the
-forwarded identity (chiefly email) and organizational roles.
+This is a **binary** decision — allow or deny. Menagerai performs only coarse, gate-level access control: it decides whether a user may *reach* an app at all. It does **not** model in-app roles or permissions. Any finer-grained authorization is each app's own responsibility, decided inside the app from the forwarded identity (chiefly email) and organizational roles.
 
-There is exactly one function that answers this. Every endpoint, SDK helper, and
-proxy is a thin wrapper over it. It must be **total** (always returns a decision)
-and **deterministic** (same inputs → same output).
+There is exactly one function that answers this. Every endpoint, SDK helper, and proxy is a thin wrapper over it. It must be **total** (always returns a decision) and **deterministic** (same inputs → same output).
 
 ### Inputs
 
@@ -41,9 +32,7 @@ user_app_overrides(U, A)           effect: allow | deny
 
 ### Precedence
 
-Access (allow) comes only from roles. Anything not granted is denied by default.
-A per-user deny is the one override that beats a role grant. There is **no
-role-level deny** in the current policy — `role_app_grants` are allow-only.
+Access (allow) comes only from roles. Anything not granted is denied by default. A per-user deny is the one override that beats a role grant. There is **no role-level deny** in the current policy — `role_app_grants` are allow-only.
 
 Evaluation stops at the first rule that matches:
 
@@ -67,18 +56,10 @@ Evaluation stops at the first rule that matches:
 
 ### Why this order
 
-- **Default deny.** Access only ever appears because a role grants it (step 4) or
-  an admin grants it to one person (step 3). Possessing a work email, or any
-  state not listed above, yields no access.
-- **A per-user deny beats everything (step 2).** This is the kill switch for "Bob
-  is in a broad department role but must be excluded from one sensitive app." It
-  is app-scoped: it removes access to the whole app `A`, not one role within it.
-- **A per-user allow (step 3) is the rare one-off** — grant one person access to
-  one app without inventing a role for them. It cannot override a user-level deny
-  (step 2 runs first); if both somehow exist for the same app, deny wins.
-- **The decision is binary.** Multiple matching allows do not need to be
-  reconciled — any one allow yields `ALLOW`. There is no role or priority to
-  resolve, and no permission bundle to return.
+- **Default deny.** Access only ever appears because a role grants it (step 4) or an admin grants it to one person (step 3). Possessing a work email, or any state not listed above, yields no access.
+- **A per-user deny beats everything (step 2).** This is the kill switch for "Bob is in a broad department role but must be excluded from one sensitive app." It is app-scoped: it removes access to the whole app `A`, not one role within it.
+- **A per-user allow (step 3) is the rare one-off** — grant one person access to one app without inventing a role for them. It cannot override a user-level deny (step 2 runs first); if both somehow exist for the same app, deny wins.
+- **The decision is binary.** Multiple matching allows do not need to be reconciled — any one allow yields `ALLOW`. There is no role or priority to resolve, and no permission bundle to return.
 
 ### Truth table
 
@@ -112,25 +93,16 @@ function decide(U, A):
     return DENY
 ```
 
-The decision function returns just `{ allowed, reason }` — no app role, no
-permissions. On an allow, the gateway forwards identity + organizational roles to the
-app; the app decides any finer-grained authorization itself.
+The decision function returns just `{ allowed, reason }` — no app role, no permissions. On an allow, the gateway forwards identity + organizational roles to the app; the app decides any finer-grained authorization itself.
 
 ## 2. Who may ask — endpoint trust model
 
-There are two distinct callers, and they must not share an endpoint, because they
-carry different trust:
+There are two distinct callers, and they must not share an endpoint, because they carry different trust:
 
-- **An app acting as the signed-in user.** It holds the *user's* Logto access
-  token. It can only ask about *itself* (the token's subject).
-- **A trusted backend service acting on behalf of users** — most importantly the
-  auth proxy in Pattern B, which must ask "is *this other user* allowed?" after
-  it authenticated them. It holds an *M2M* (client-credentials) token, not a user
-  token.
+- **An app acting as the signed-in user.** It holds the *user's* Logto access token. It can only ask about *itself* (the token's subject).
+- **A trusted backend service acting on behalf of users** — most importantly the auth proxy in Pattern B, which must ask "is *this other user* allowed?" after it authenticated them. It holds an *M2M* (client-credentials) token, not a user token.
 
-Collapsing these into one endpoint is what made the original draft ambiguous
-(a request body carrying someone else's identity over a user token). They are
-split:
+Collapsing these into one endpoint is what made the original draft ambiguous (a request body carrying someone else's identity over a user token). They are split:
 
 ### `POST /api/access/check` — user-token mode
 
@@ -159,10 +131,7 @@ Content-Type: application/json
 }
 ```
 
-The answer is binary: just whether the subject may reach the app. Menagerai
-returns no app role and no permissions — any finer-grained, in-app
-authorization is the app's own responsibility, decided from the forwarded
-identity.
+The answer is binary: just whether the subject may reach the app. Menagerai returns no app role and no permissions — any finer-grained, in-app authorization is the app's own responsibility, decided from the forwarded identity.
 
 ### `POST /api/access/resolve` — service (M2M) mode
 
@@ -186,22 +155,15 @@ Content-Type: application/json
 }
 ```
 
-The response shape matches `/check`. Only M2M clients on an allowlist may call
-`/resolve`; a user token presented here is rejected, and an M2M token presented
-to `/check` is rejected. The two modes never overlap.
+The response shape matches `/check`. Only M2M clients on an allowlist may call `/resolve`; a user token presented here is rejected, and an M2M token presented to `/check` is rejected. The two modes never overlap.
 
 ### Distinguishing the token type
 
-Logto issues user tokens (interactive, carry a user `sub`) and M2M tokens
-(client-credentials, carry a `client_id`, no interactive user). Menagerai keys off
-the audience/grant: M2M tokens are scoped to the Management/Menagerai resource via
-client credentials and have no end-user subject. Menagerai rejects the wrong token
-type per endpoint rather than guessing intent.
+Logto issues user tokens (interactive, carry a user `sub`) and M2M tokens (client-credentials, carry a `client_id`, no interactive user). Menagerai keys off the audience/grant: M2M tokens are scoped to the Management/Menagerai resource via client credentials and have no end-user subject. Menagerai rejects the wrong token type per endpoint rather than guessing intent.
 
 ### Batch check (portal launcher)
 
-`POST /api/access/batch-check` is the user-token-mode `/check` over many apps in
-one call, used to render the launcher. Same auth rules as `/check`.
+`POST /api/access/batch-check` is the user-token-mode `/check` over many apps in one call, used to render the launcher. Same auth rules as `/check`.
 
 ```http
 POST /api/access/batch-check
@@ -219,9 +181,7 @@ Critical:  bypass cache and live-check for sensitive admin actions
 Proxy:     may cache per session for the same short TTL.
 ```
 
-The short TTL is the deliberate cost of *not* baking authorization into
-long-lived JWTs: a revoked grant or a disabled user takes effect within one TTL
-window everywhere, without token revocation machinery.
+The short TTL is the deliberate cost of *not* baking authorization into long-lived JWTs: a revoked grant or a disabled user takes effect within one TTL window everywhere, without token revocation machinery.
 
 ## 4. Edge cases (must be handled explicitly)
 
@@ -236,5 +196,4 @@ window everywhere, without token revocation machinery.
 - Right token type, wrong endpoint → 401/403, never silently honored
 ```
 
-A `DENY` is a normal, expected answer and must render an actionable no-access
-page — never a 500 and never a generic "error".
+A `DENY` is a normal, expected answer and must render an actionable no-access page — never a 500 and never a generic "error".

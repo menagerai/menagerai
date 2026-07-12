@@ -48,10 +48,7 @@ Flow:
 User → Auth Proxy → App
 ```
 
-The proxy authenticates the user (via Logto), asks Menagerai what that user is
-allowed to do by calling `/api/access/resolve` over an M2M token (see
-[`authorization-semantics.md`](authorization-semantics.md) §2), and injects
-trusted headers:
+The proxy authenticates the user (via Logto), asks Menagerai what that user is allowed to do by calling `/api/access/resolve` over an M2M token (see [`authorization-semantics.md`](authorization-semantics.md) §2), and injects trusted headers:
 
 ```http
 X-Menagerai-User-Email: alice@example.com
@@ -60,8 +57,7 @@ X-Menagerai-Roles: finance_staff,employee
 X-Menagerai-Proxy-Secret: <per-app shared secret>
 ```
 
-`X-Menagerai-Roles` carries the user's ORGANIZATIONAL role keys, not per-app roles —
-Menagerai forwards identity, not an in-app role. There is no `X-Menagerai-App-Role`.
+`X-Menagerai-Roles` carries the user's ORGANIZATIONAL role keys, not per-app roles — Menagerai forwards identity, not an in-app role. There is no `X-Menagerai-App-Role`.
 
 Good fit for:
 
@@ -84,8 +80,7 @@ Cons:
 
 ### Header trust mechanism
 
-"Only trust headers from the proxy" is a requirement, not a mechanism. Enforce it
-with defense in depth — all three layers, not one:
+"Only trust headers from the proxy" is a requirement, not a mechanism. Enforce it with defense in depth — all three layers, not one:
 
 ```text
 1. Network isolation
@@ -111,10 +106,7 @@ with defense in depth — all three layers, not one:
      by valid proxy authentication, even on the internal network.
 ```
 
-If any single layer fails (a container gets accidentally published, a header
-isn't stripped), the others still hold. The shared secret / mTLS in layer 3 is
-what makes header spoofing infeasible even for an attacker already inside the
-network.
+If any single layer fails (a container gets accidentally published, a header isn't stripped), the others still hold. The shared secret / mTLS in layer 3 is what makes header spoofing infeasible even for an attacker already inside the network.
 
 Security requirement:
 
@@ -142,10 +134,7 @@ menagerai_auth_python
 @menagerai/auth-node
 ```
 
-The Menagerai access check is binary — it answers "may this user reach this app?", not
-"with what app role?". The SDK surfaces that gate plus the forwarded identity; any
-in-app role/permission guard is the app's own logic over the user's email and
-organizational roles.
+The Menagerai access check is binary — it answers "may this user reach this app?", not "with what app role?". The SDK surfaces that gate plus the forwarded identity; any in-app role/permission guard is the app's own logic over the user's email and organizational roles.
 
 Python shape:
 
@@ -174,14 +163,9 @@ Responsibilities:
 
 ## Access-check API
 
-Prefer live access checks over stuffing access state into long-lived JWTs. The
-check is a coarse, gate-level decision: a binary allow/deny per (user, app). It
-does not return an app role or a permission bundle — finer-grained authorization
-is the app's own concern.
+Prefer live access checks over stuffing access state into long-lived JWTs. The check is a coarse, gate-level decision: a binary allow/deny per (user, app). It does not return an app role or a permission bundle — finer-grained authorization is the app's own concern.
 
-The full contract — endpoints, who may call them, token modes, request/response
-shapes, and edge cases — is defined in
-[`authorization-semantics.md`](authorization-semantics.md). In short:
+The full contract — endpoints, who may call them, token modes, request/response shapes, and edge cases — is defined in [`authorization-semantics.md`](authorization-semantics.md). In short:
 
 ```text
 POST /api/access/check        user-token mode — an app asks about the signed-in
@@ -274,10 +258,7 @@ internal_users.email = "alice@example.com"
 
 ### Type 3: internal role system
 
-Menagerai only decides whether the user may reach the app (binary allow/deny).
-It does not pass an app role. An app with an internal role system maps the
-forwarded identity — chiefly the email, optionally the organizational roles — to its
-own internal roles and permissions.
+Menagerai only decides whether the user may reach the app (binary allow/deny). It does not pass an app role. An app with an internal role system maps the forwarded identity — chiefly the email, optionally the organizational roles — to its own internal roles and permissions.
 
 Example:
 
@@ -289,5 +270,4 @@ App's own internal mapping:
 - can_export_report
 ```
 
-Menagerai does not centralize app permissions. It centralizes the top-level access
-gate; each app keeps its own internal roles where it needs them.
+Menagerai does not centralize app permissions. It centralizes the top-level access gate; each app keeps its own internal roles where it needs them.

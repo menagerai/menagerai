@@ -1,8 +1,6 @@
 # App onboarding — Demo App
 
-A reference worked example of bringing an app under the Menagerai portal: a
-prompt-tree manager with an admin UI and a public read API used by third-party
-callers. Use it as the template when onboarding your own apps.
+A reference worked example of bringing an app under the Menagerai portal: a prompt-tree manager with an admin UI and a public read API used by third-party callers. Use it as the template when onboarding your own apps.
 
 ## 1. Catalogue facts
 
@@ -31,15 +29,11 @@ PUT  /api/tree                protected   write tree (any cleared user)
 GET  /admin/*, /              protected   admin UI shell (served after gateway auth)
 ```
 
-The two public rows are the reason this app can't simply be "all behind auth":
-external systems read prompt content via `/api/public/**` with no Menagerai session.
+The two public rows are the reason this app can't simply be "all behind auth": external systems read prompt content via `/api/public/**` with no Menagerai session.
 
 ## 3. In-app authorization
 
-The demo app has **no in-app roles**. Any gateway-cleared user has full read-write
-access — open the admin UI, read the tree, and add/edit/rename/move/delete/
-reorder + save. There is no `app_roles` config: Menagerai's binary allow/deny per
-(user, app) is the only access decision.
+The demo app has **no in-app roles**. Any gateway-cleared user has full read-write access — open the admin UI, read the tree, and add/edit/rename/move/delete/ reorder + save. There is no `app_roles` config: Menagerai's binary allow/deny per (user, app) is the only access decision.
 
 ## 4. `apps` document (Menagerai seed)
 
@@ -91,15 +85,11 @@ reorder + save. There is no `app_roles` config: Menagerai's binary allow/deny pe
 [x] No second public FQDN / exposed port — reachable only via the gateway.
 ```
 
-Note: `/api/public/**` is intentionally anonymous, but it still bears the
-`menagerai-auth` middleware — the gateway matches it against `public_paths` and lets
-it through without a session. Third-party callers keep using
-`https://<portal-host>/apps/demo/api/public/...` unchanged.
+Note: `/api/public/**` is intentionally anonymous, but it still bears the `menagerai-auth` middleware — the gateway matches it against `public_paths` and lets it through without a session. Third-party callers keep using `https://<portal-host>/apps/demo/api/public/...` unchanged.
 
 ## 7. What broke, and what fixed it (lessons → runbook)
 
-These were the real issues bringing the first app online; all are now captured in
-[`../DEPLOY.md`](../DEPLOY.md) §4–§7 and [`_TEMPLATE.md`](_TEMPLATE.md):
+These were the real issues bringing the first app online; all are now captured in [`../DEPLOY.md`](../DEPLOY.md) §4–§7 and [`_TEMPLATE.md`](_TEMPLATE.md):
 
 ```text
 - Logto sign-in failed with "unexpected JWT alg ... expected RS256, got ES384".

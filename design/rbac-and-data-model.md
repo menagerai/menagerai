@@ -23,11 +23,7 @@ system_admin
 
 ### Access is binary — Menagerai does not model app roles
 
-Menagerai performs only coarse, **gate-level** access control: a binary allow/deny
-per `(user, app)`. It does **not** model in-app roles or permissions. Access to
-reach an app comes from an organizational role grant or a per-user override; once a
-user is allowed, the gateway forwards their identity and organizational roles to the
-app, and the app decides any finer-grained authorization itself.
+Menagerai performs only coarse, **gate-level** access control: a binary allow/deny per `(user, app)`. It does **not** model in-app roles or permissions. Access to reach an app comes from an organizational role grant or a per-user override; once a user is allowed, the gateway forwards their identity and organizational roles to the app, and the app decides any finer-grained authorization itself.
 
 ```text
 User → OrganizationalRole → (grants access to) App
@@ -40,21 +36,11 @@ Support both inherited grants and direct overrides:
 - Direct allow override: Alice is granted access to one app without a role.
 - Direct deny override: Bob belongs to a broad role but is excluded from a sensitive app.
 
-> **Apps MAY have their own internal roles** (viewer, approver, admin, …) and
-> permission schemes — but those live inside the app, keyed off the forwarded
-> identity (chiefly email) and organizational roles. Menagerai neither stores nor
-> forwards a per-app role. See
-> [`authorization-semantics.md`](authorization-semantics.md).
+> **Apps MAY have their own internal roles** (viewer, approver, admin, …) and permission schemes — but those live inside the app, keyed off the forwarded identity (chiefly email) and organizational roles. Menagerai neither stores nor forwards a per-app role. See [`authorization-semantics.md`](authorization-semantics.md).
 
 ## Suggested database schema
 
-The Menagerai store is **backend-pluggable** — SQLite by default, MongoDB
-optionally (see [`open-considerations.md`](open-considerations.md)). The tables
-below are the *logical* model — they name the entities and relationships clearly.
-The physical realization (the same collections and fields, backed by either
-SQLite JSON-document tables or MongoDB collections, with embedding) is in
-[Physical model: collections](#physical-model-collections) at the end of this
-document.
+The Menagerai store is **backend-pluggable** — SQLite by default, MongoDB optionally (see [`open-considerations.md`](open-considerations.md)). The tables below are the *logical* model — they name the entities and relationships clearly. The physical realization (the same collections and fields, backed by either SQLite JSON-document tables or MongoDB collections, with embedding) is in [Physical model: collections](#physical-model-collections) at the end of this document.
 
 ### users
 
@@ -155,8 +141,7 @@ role_app_grants
 - created_at
 ```
 
-A grant means "holding this role lets you reach this app." It carries no app
-role.
+A grant means "holding this role lets you reach this app." It carries no app role.
 
 ### user_app_overrides
 
@@ -172,25 +157,16 @@ user_app_overrides
 
 Explicit deny is useful when a user belongs to a broad department role but must be excluded from one app.
 
-The precedence among role grants and per-user overrides — and how multiple
-matching rows collapse to a single decision — is defined in
-[`authorization-semantics.md`](authorization-semantics.md) §1. In the current
-policy:
+The precedence among role grants and per-user overrides — and how multiple matching rows collapse to a single decision — is defined in [`authorization-semantics.md`](authorization-semantics.md) §1. In the current policy:
 
-- `role_app_grants` are **allow-only** (the `effect` column exists for forward
-  compatibility but `deny` is unused). Access comes only from roles.
-- `user_app_overrides.effect = deny` is the per-user kill switch and beats any
-  role grant.
-- `user_app_overrides.effect = allow` is a rare one-off grant for a single person
-  to a single app, used when creating a whole role would be overkill.
+- `role_app_grants` are **allow-only** (the `effect` column exists for forward compatibility but `deny` is unused). Access comes only from roles.
+- `user_app_overrides.effect = deny` is the per-user kill switch and beats any role grant.
+- `user_app_overrides.effect = allow` is a rare one-off grant for a single person to a single app, used when creating a whole role would be overkill.
 - Anything not granted is denied by default.
 
 ### App roles and permissions — out of scope
 
-Menagerai intentionally does **not** model app roles or permissions. There are no
-`app_roles`, `permissions`, or `app_role_permissions` tables: access is binary
-(reach-the-app or not), and any in-app role/permission scheme belongs to the app
-itself. See [`authorization-semantics.md`](authorization-semantics.md).
+Menagerai intentionally does **not** model app roles or permissions. There are no `app_roles`, `permissions`, or `app_role_permissions` tables: access is binary (reach-the-app or not), and any in-app role/permission scheme belongs to the app itself. See [`authorization-semantics.md`](authorization-semantics.md).
 
 ### audit_logs
 
@@ -271,14 +247,7 @@ These views prevent permission drift and make access review practical.
 
 ## Physical model: collections
 
-The Menagerai store is backend-pluggable: the same logical tables are realized as
-the same collections and fields either way — as SQLite JSON-document tables
-(the default) or as MongoDB collections. In both backends a document is the unit
-of storage; **embed** data that is owned by one parent, **reference** data that is
-shared. On SQLite each collection is a table `(id TEXT PRIMARY KEY, doc TEXT)`
-holding the document as JSON, with queried/indexed fields exposed as generated
-columns so real indexes back them; on MongoDB each is a native collection. The
-document shapes below are identical across backends.
+The Menagerai store is backend-pluggable: the same logical tables are realized as the same collections and fields either way — as SQLite JSON-document tables (the default) or as MongoDB collections. In both backends a document is the unit of storage; **embed** data that is owned by one parent, **reference** data that is shared. On SQLite each collection is a table `(id TEXT PRIMARY KEY, doc TEXT)` holding the document as JSON, with queried/indexed fields exposed as generated columns so real indexes back them; on MongoDB each is a native collection. The document shapes below are identical across backends.
 
 ```text
 - A user OWNS its per-user overrides         → embedded in the user doc
@@ -290,11 +259,7 @@ document shapes below are identical across backends.
    one row per user×app×active-day)
 ```
 
-> **Implementation status.** Collections actually created by the store
-> (`src/store/`): `users`, `roles`, `apps`, `email_allow_rules`, `sessions`, `audit_logs`,
-> `usage_daily`. `logto_sync_events` from the logical model is **not**
-> implemented — Logto provisioning/offboarding uses the Management API directly
-> plus `users.last_synced_to_logto_at`, rather than an events queue.
+> **Implementation status.** Collections actually created by the store (`src/store/`): `users`, `roles`, `apps`, `email_allow_rules`, `sessions`, `audit_logs`, `usage_daily`. `logto_sync_events` from the logical model is **not** implemented — Logto provisioning/offboarding uses the Management API directly plus `users.last_synced_to_logto_at`, rather than an events queue.
 
 ### `users`
 
@@ -335,8 +300,7 @@ document shapes below are identical across backends.
 }
 ```
 
-`grants` are allow-only (role-level deny is not used; see
-[`authorization-semantics.md`](authorization-semantics.md) §1).
+`grants` are allow-only (role-level deny is not used; see [`authorization-semantics.md`](authorization-semantics.md) §1).
 
 ### `apps`
 
@@ -359,35 +323,17 @@ document shapes below are identical across backends.
 }
 ```
 
-`public_paths` is the default-deny allowlist of app-relative paths that skip
-Menagerai authentication, evaluated by the gateway (see
-[`deployment-and-gateway.md`](deployment-and-gateway.md) §`/gateway/verify`).
-Patterns match the path **after** stripping `/apps/<key>`, are method-scoped, and
-requests matching them reach the app anonymously (no `X-Menagerai-*` headers).
+`public_paths` is the default-deny allowlist of app-relative paths that skip Menagerai authentication, evaluated by the gateway (see [`deployment-and-gateway.md`](deployment-and-gateway.md) §`/gateway/verify`). Patterns match the path **after** stripping `/apps/<key>`, are method-scoped, and requests matching them reach the app anonymously (no `X-Menagerai-*` headers).
 
-`proxy_secret` is a per-app random value generated when the app is registered.
-The gateway injects it as the `X-Menagerai-Proxy-Secret` response header on allowed
-requests (Traefik copies it to the upstream), and the app validates it against
-its own `MENAGERAI_PROXY_SECRET` env before trusting any `X-Menagerai-*` header — so a
-request that reaches the app *without* passing through the gateway (a
-misconfigured public route, or an internal attacker) cannot spoof identity.
-Per-app (not shared) keeps a leak's blast radius to one app and allows
-independent rotation.
+`proxy_secret` is a per-app random value generated when the app is registered. The gateway injects it as the `X-Menagerai-Proxy-Secret` response header on allowed requests (Traefik copies it to the upstream), and the app validates it against its own `MENAGERAI_PROXY_SECRET` env before trusting any `X-Menagerai-*` header — so a request that reaches the app *without* passing through the gateway (a misconfigured public route, or an internal attacker) cannot spoof identity. Per-app (not shared) keeps a leak's blast radius to one app and allows independent rotation.
 
 ### `email_allow_rules`, `audit_logs`
 
-Standalone collections, one document per row of the logical tables above.
-`audit_logs` is append-only and maps cleanly to a document per event in either
-backend. (`sessions` is documented in
-[`deployment-and-gateway.md`](deployment-and-gateway.md) § Session cookie.)
+Standalone collections, one document per row of the logical tables above. `audit_logs` is append-only and maps cleanly to a document per event in either backend. (`sessions` is documented in [`deployment-and-gateway.md`](deployment-and-gateway.md) § Session cookie.)
 
 ### `usage_daily`
 
-App-usage statistics, collapsed from per-request access validations into **DAU =
-distinct active days**: one document per `(user, app, business-day)`. The first
-successful gateway access on a day inserts the row; further hits that day are a
-no-op. The business day is bucketed in the configured `TIMEZONE` (default
-`UTC`).
+App-usage statistics, collapsed from per-request access validations into **DAU = distinct active days**: one document per `(user, app, business-day)`. The first successful gateway access on a day inserts the row; further hits that day are a no-op. The business day is bucketed in the configured `TIMEZONE` (default `UTC`).
 
 ```json
 {
@@ -400,16 +346,9 @@ no-op. The business day is bucketed in the configured `TIMEZONE` (default
 }
 ```
 
-Written only at the gateway enforcement point on an ALLOW (`recordUsage`,
-fire-and-forget); previews/listings (launcher, `/api/access/check`, admin access
-matrices) and anonymous/forbidden requests are not counted. The unique
-`(user_id, app_key, day)` index makes the upsert idempotent (restart- and
-replica-safe); an in-process dedup set suppresses redundant same-day writes.
+Written only at the gateway enforcement point on an ALLOW (`recordUsage`, fire-and-forget); previews/listings (launcher, `/api/access/check`, admin access matrices) and anonymous/forbidden requests are not counted. The unique `(user_id, app_key, day)` index makes the upsert idempotent (restart- and replica-safe); an in-process dedup set suppresses redundant same-day writes.
 
-Reads power the admin pages: per-user "apps used most" and per-app "power users"
-(active-day counts) and a GitHub-style activity heatmap (per-day intensity). Day
-labels are zero-padded strings, so range windows compare lexicographically. Rows
-are tiny (bounded by users × apps × active-days); no TTL in v1.
+Reads power the admin pages: per-user "apps used most" and per-app "power users" (active-day counts) and a GitHub-style activity heatmap (per-day intensity). Day labels are zero-padded strings, so range windows compare lexicographically. Rows are tiny (bounded by users × apps × active-days); no TTL in v1.
 
 ### Integrity Menagerai must enforce in code (no foreign keys)
 
@@ -436,8 +375,7 @@ are tiny (bounded by users × apps × active-days); no TTL in v1.
 
 ### Indexes
 
-Ensured by the store on startup (the same index set is expressed on either
-backend — native indexes on MongoDB, indexes over generated columns on SQLite):
+Ensured by the store on startup (the same index set is expressed on either backend — native indexes on MongoDB, indexes over generated columns on SQLite):
 
 ```text
 users:              unique email; unique sparse logto_user_id
@@ -452,9 +390,7 @@ audit_logs:         created_at desc
 usage_daily:        unique (user_id, app_key, day); (app_key, day); (user_id, day)
 ```
 
-Deferred until the dataset warrants them (queries are admin-only and small):
-`users.roles` / `users.app_overrides.app`, `roles.grants.app`, and an
-`audit_logs` composite on actor/target.
+Deferred until the dataset warrants them (queries are admin-only and small): `users.roles` / `users.app_overrides.app`, `roles.grants.app`, and an `audit_logs` composite on actor/target.
 
 ### `decide(user, app)` read path
 

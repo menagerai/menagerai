@@ -152,11 +152,7 @@ Do not merely revoke app grants during offboarding. Identity-level disable is re
 
 ## Keeping Menagerai and Logto in sync (both directions)
 
-`logto_sync_events` covers the **write** path (Menagerai → Logto): every user create,
-update, and disable Menagerai initiates is logged so drift is visible. But identity
-state can also change **on the Logto side** — an operator suspends or deletes a
-user directly in the Logto console, or Logto deactivates an account. Nothing in
-the write-path log catches that, so Menagerai needs a **read** path back.
+`logto_sync_events` covers the **write** path (Menagerai → Logto): every user create, update, and disable Menagerai initiates is logged so drift is visible. But identity state can also change **on the Logto side** — an operator suspends or deletes a user directly in the Logto console, or Logto deactivates an account. Nothing in the write-path log catches that, so Menagerai needs a **read** path back.
 
 ```text
 Menagerai → Logto   write path   provisioning, updates, offboarding (logged in
@@ -182,8 +178,7 @@ Verify the webhook signature so the endpoint cannot be spoofed.
 
 ### Backstop: periodic reconcile sweep
 
-Webhooks can be missed (downtime, delivery failure). Run a periodic job that
-lists Logto users via the Management API and reconciles against Menagerai users:
+Webhooks can be missed (downtime, delivery failure). Run a periodic job that lists Logto users via the Management API and reconciles against Menagerai users:
 
 ```text
 - Logto user suspended/deleted but Menagerai user active → disable in Menagerai, audit.
@@ -191,18 +186,11 @@ lists Logto users via the Management API and reconciles against Menagerai users:
 - Mismatched email / logto_user_id                       → flag drift for admin.
 ```
 
-This is the read-path counterpart to `logto_sync_events` and closes the loop:
-authorization stays Menagerai-owned, identity-level suspension stays Logto-owned, and
-neither side silently diverges from the other. Because apps live-check Menagerai on
-a short TTL (see [`authorization-semantics.md`](authorization-semantics.md) §3),
-a reflected disable takes effect everywhere within one cache window.
+This is the read-path counterpart to `logto_sync_events` and closes the loop: authorization stays Menagerai-owned, identity-level suspension stays Logto-owned, and neither side silently diverges from the other. Because apps live-check Menagerai on a short TTL (see [`authorization-semantics.md`](authorization-semantics.md) §3), a reflected disable takes effect everywhere within one cache window.
 
 ### Implemented today: display-name sync (both directions)
 
-The webhook/reconcile machinery above is the broader design; the **name** field is
-kept in sync now, at two no-extra-infrastructure touchpoints, when the Management
-API is configured (`managementConfigured()`) and the user is linked
-(`logto_user_id` set):
+The webhook/reconcile machinery above is the broader design; the **name** field is kept in sync now, at two no-extra-infrastructure touchpoints, when the Management API is configured (`managementConfigured()`) and the user is linked (`logto_user_id` set):
 
 ```text
 Menagerai → Logto   on profile edit   admin edits a user's name in the portal →
@@ -214,9 +202,4 @@ Logto → Menagerai   on sign-in        the OIDC callback reads the `name` claim
                                       and writes an audit (action user.name_synced_from_logto).
 ```
 
-Each side is last-write-wins for the name (low-stakes, single field). The login
-pull means a name changed directly in Logto reflects in the portal on the user's
-next sign-in; a webhook (`User.Data.Updated`) would make the reverse direction
-real-time but is not required for this field. The **email** is deliberately not
-synced/editable — it is the identity key Logto asserts; correcting it means
-delete + recreate the user.
+Each side is last-write-wins for the name (low-stakes, single field). The login pull means a name changed directly in Logto reflects in the portal on the user's next sign-in; a webhook (`User.Data.Updated`) would make the reverse direction real-time but is not required for this field. The **email** is deliberately not synced/editable — it is the identity key Logto asserts; correcting it means delete + recreate the user.

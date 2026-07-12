@@ -1,14 +1,10 @@
 # Open Considerations and Operational Notes
 
-A running register of decisions still to finalize and operational gotchas to
-respect during build-out. Items graduate out of here into the relevant design
-doc once settled.
+A running register of decisions still to finalize and operational gotchas to respect during build-out. Items graduate out of here into the relevant design doc once settled.
 
 ## Coolify / Traefik ForwardAuth wiring
 
-The mechanism for putting every app behind the Menagerai gateway (see
-[`deployment-and-gateway.md`](deployment-and-gateway.md)) is a Traefik
-**ForwardAuth middleware**, defined once and attached to each app's router.
+The mechanism for putting every app behind the Menagerai gateway (see [`deployment-and-gateway.md`](deployment-and-gateway.md)) is a Traefik **ForwardAuth middleware**, defined once and attached to each app's router.
 
 ### Define the middleware once (Traefik dynamic config)
 
@@ -28,21 +24,13 @@ http:
           - X-Menagerai-Proxy-Secret
 ```
 
-`X-Menagerai-Proxy-Secret` carries the target app's own per-app secret (same header
-name for every app; Menagerai fills the per-app value at `/gateway/verify`). The
-app validates it against its `MENAGERAI_PROXY_SECRET` env before trusting identity.
+`X-Menagerai-Proxy-Secret` carries the target app's own per-app secret (same header name for every app; Menagerai fills the per-app value at `/gateway/verify`). The app validates it against its `MENAGERAI_PROXY_SECRET` env before trusting identity.
 
-One shared middleware serves all apps: Traefik forwards the original request's
-`Cookie` and `X-Forwarded-Uri`, so Menagerai reads the session cookie *and* sees
-`/apps/<key>/...`, derives the app key, and runs `decide(user, key)`. No per-app
-middleware needed.
+One shared middleware serves all apps: Traefik forwards the original request's `Cookie` and `X-Forwarded-Uri`, so Menagerai reads the session cookie *and* sees `/apps/<key>/...`, derives the app key, and runs `decide(user, key)`. No per-app middleware needed.
 
 ### Attach it per app
 
-In the app's Configuration → General → Network, uncheck **Readonly labels**,
-find the auto-generated router label
-`traefik.http.routers.https-0-XXXXXX.middlewares`, and append `menagerai-auth@file`.
-That single label per app is the whole per-app step.
+In the app's Configuration → General → Network, uncheck **Readonly labels**, find the auto-generated router label `traefik.http.routers.https-0-XXXXXX.middlewares`, and append `menagerai-auth@file`. That single label per app is the whole per-app step.
 
 ### Caveats (must respect)
 
@@ -58,18 +46,11 @@ That single label per app is the whole per-app step.
   the same container skips the middleware entirely.
 ```
 
-References:
-- https://coolify.io/docs/knowledge-base/proxy/traefik/protect-services-with-authentik
-- https://github.com/coollabsio/coolify/issues/3754
-- https://github.com/coollabsio/coolify/issues/5563
+References: - https://coolify.io/docs/knowledge-base/proxy/traefik/protect-services-with-authentik - https://github.com/coollabsio/coolify/issues/3754 - https://github.com/coollabsio/coolify/issues/5563
 
 ## `/gateway/verify` contract (FINALIZED)
 
-The ForwardAuth target is fully specified in
-[`deployment-and-gateway.md`](deployment-and-gateway.md) §`/gateway/verify`:
-inputs, browser-vs-API discrimination (`Sec-Fetch-Mode` → `Accept`), the
-OK/UNAUTH/FORBIDDEN/NOT_FOUND response matrix, the `menagerai_session` cookie, and the
-per-app `public_paths` allowlist. Decisions taken:
+The ForwardAuth target is fully specified in [`deployment-and-gateway.md`](deployment-and-gateway.md) §`/gateway/verify`: inputs, browser-vs-API discrimination (`Sec-Fetch-Mode` → `Accept`), the OK/UNAUTH/FORBIDDEN/NOT_FOUND response matrix, the `menagerai_session` cookie, and the per-app `public_paths` allowlist. Decisions taken:
 
 ```text
 - HTML vs API: navigations get 302/redirect, API calls get 401/403 JSON;
@@ -90,10 +71,7 @@ Tunables now settled (defaults in `deployment-and-gateway.md`):
 
 ## Data store — SQLite primary, MongoDB pluggable (DECIDED)
 
-Menagerai's datastore is **backend-pluggable** behind a thin collection interface
-(`src/store/`). The app talks to a backend-agnostic `col` collections object;
-nothing else in the app changes between backends. The document/collection model
-is in [`rbac-and-data-model.md`](rbac-and-data-model.md) §Physical model.
+Menagerai's datastore is **backend-pluggable** behind a thin collection interface (`src/store/`). The app talks to a backend-agnostic `col` collections object; nothing else in the app changes between backends. The document/collection model is in [`rbac-and-data-model.md`](rbac-and-data-model.md) §Physical model.
 
 ```text
 - SQLite is the primary/default backend — a single file at SQLITE_PATH
