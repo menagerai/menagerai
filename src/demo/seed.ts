@@ -31,8 +31,9 @@ interface DemoApp {
   description: string;
 }
 
-// Reserved domain so no real mailbox is impersonated by a demo persona.
-const DEMO_DOMAIN = 'demo.menagerai.dev';
+// The demo's own domain — persona emails share it with the deployed demo site
+// (demo.menager.ai), so no real external mailbox is impersonated.
+const DEMO_DOMAIN = 'demo.menager.ai';
 
 export const DEMO_APPS: DemoApp[] = [
   { key: 'pulse', name: 'Pulse Analytics', description: 'Product analytics dashboard (demo).' },

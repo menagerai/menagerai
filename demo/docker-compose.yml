@@ -26,20 +26,34 @@
 #
 # The database is in-container and resets DEMO_LIMIT_MINS after the first sign-in.
 
+# Shared healthcheck for the Node services (portal + mock apps): hit /healthz on
+# :3000. 15s startup grace, then every 30s.
+x-node-healthcheck: &node-healthcheck
+  test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"]
+  interval: 30s
+  timeout: 5s
+  start_period: 15s
+  retries: 3
+
 services:
   traefik:
-    # Routing config is baked into the image (see demo/traefik/Dockerfile), so there
-    # is nothing to bind-mount. No host port here — Coolify routes the demo domain to
-    # this service's :80; the local override publishes it for `docker compose up`.
+    # Static + routing config is baked into the image (see demo/traefik/Dockerfile),
+    # so there is nothing to bind-mount and no command needed. No host port here —
+    # Coolify routes the demo domain to this service's :80; the local override
+    # publishes it for `docker compose up`.
     build:
       context: ./demo/traefik
       dockerfile: Dockerfile
     restart: unless-stopped
-    command:
-      - --providers.file.directory=/etc/traefik/dynamic
-      - --entryPoints.web.address=:80
     depends_on:
       - portal
+    # Traefik's own ping endpoint (internal `ping` entrypoint, see traefik.yml).
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
 
   portal:
     # Build contexts are repo-root-relative: Coolify runs compose with the project
@@ -56,6 +70,7 @@ services:
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       GATEWAY_PUBLIC: "false"
       SQLITE_PATH: "/tmp/menagerai-demo.db"
+    healthcheck: *node-healthcheck
 
   pulse:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: pulse } }
@@ -64,6 +79,7 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/pulse
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
+    healthcheck: *node-healthcheck
 
   wiki:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: wiki } }
@@ -72,6 +88,7 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/wiki
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
+    healthcheck: *node-healthcheck
 
   desk:
     build: { context: ./demo/apps, dockerfile: Dockerfile, args: { APP: desk } }
@@ -80,3 +97,4 @@ services:
       DEMO_SECRET: "${DEMO_SECRET:?}"
       APP_BASE_PATH: /apps/desk
       PORTAL_URL: "${PORTAL_BASE_URL:-http://localhost}"
+    healthcheck: *node-healthcheck

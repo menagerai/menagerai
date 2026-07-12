@@ -1,0 +1,17 @@
+# Static config for the demo's internal Traefik. Baked into the image (see
+# Dockerfile) at the default path so both the running process and the
+# `traefik healthcheck` CLI read the same config. `web` is the public entrypoint;
+# `ping` is an internal-only entrypoint used solely by the container healthcheck.
+entryPoints:
+  web:
+    address: ":80"
+  ping:
+    address: ":8082"
+
+ping:
+  entryPoint: ping
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
