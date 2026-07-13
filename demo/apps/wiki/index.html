@@ -5,60 +5,82 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{APP_NAME}}</title>
   <style>
-    :root { --accent:#059669; --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f9fafb; }
+    :root { --ink:#302c28; --muted:#81776c; --paper:#fffdf7; --canvas:#eee8da; --rule:#d9cfbd; --red:#9f3e35; }
     * { box-sizing:border-box; }
-    body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-    .wrap { max-width:920px; margin:24px auto; padding:0 20px; }
-    .appbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-    .appbar .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); }
-    .appbar h1 { font-size:19px; margin:0; }
-    .appbar .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:9px; padding:1px 8px; }
-    .idcard { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
-    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    body { margin:0; color:var(--ink); background:var(--canvas); font:16px/1.7 Georgia,"Times New Roman",serif; }
+    .wrap { max-width:1100px; margin:0 auto; padding:28px 24px 56px; }
+    .appbar { display:flex; align-items:baseline; gap:14px; padding-bottom:16px; margin-bottom:22px; border-bottom:1px solid #afa28f; }
+    .appbar h1 { margin:0; font:700 27px/1 Georgia,serif; letter-spacing:-.03em; }
+    .appbar .edition { color:var(--red); font:italic 14px Georgia,serif; }
+    .appbar .search { margin-left:auto; color:var(--muted); font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; border-bottom:1px solid #afa28f; padding:3px 34px 3px 0; }
+
+    /* Intentionally identical across all three mock apps. */
+    .idcard { font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#1f2937;
+              background:#fff; border:1px solid #e5e7eb; border-left:4px solid #2563eb; border-radius:10px;
+              padding:16px 18px; margin-bottom:22px; box-shadow:none; }
+    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; }
     .idcard .email { font-size:19px; font-weight:700; margin:2px 0 6px; word-break:break-all; }
-    .idcard .meta { font-size:13px; color:var(--muted); }
-    .idcard code { background:#f3f4f6; padding:1px 6px; border-radius:4px; font-size:12px; }
-    .idcard .note { margin-top:10px; font-size:12px; color:var(--muted); line-height:1.5; }
-    .idcard .back { display:inline-block; margin-top:10px; color:var(--accent); text-decoration:none; font-size:13px; }
-    .layout { display:grid; grid-template-columns:200px 1fr; gap:14px; }
-    @media (max-width:640px) { .layout { grid-template-columns:1fr; } }
-    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
-    .fake { opacity:.6; pointer-events:none; user-select:none; }
-    .toc a { display:block; padding:6px 8px; border-radius:6px; color:var(--fg); text-decoration:none; font-size:13px; }
-    .toc a.on { background:var(--accent); color:#fff; }
-    article h2 { font-size:17px; margin:0 0 8px; }
-    article p { color:#374151; }
-    .btn { display:inline-block; margin-top:8px; padding:5px 11px; border:1px solid var(--line); border-radius:6px; background:#fff; font-size:13px; }
+    .idcard .meta { font-size:13px; color:#6b7280; }
+    .idcard code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#f3f4f6; color:#1f2937; padding:1px 6px; border-radius:4px; font-size:12px; }
+    .idcard .note { margin-top:10px; font-size:12px; color:#6b7280; line-height:1.5; }
+    .idcard .back { display:inline-block; margin-top:10px; color:#2563eb; text-decoration:none; font-size:13px; }
+
+    .crumbs { margin:28px 0 10px; color:var(--red); font:11px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; letter-spacing:.1em; text-transform:uppercase; }
+    .layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:36px; align-items:start; }
+    .toc { position:sticky; top:20px; padding:18px 0; border-top:3px double #9e927f; border-bottom:1px solid #bcb09d; }
+    .toc strong { display:block; margin:0 0 9px; font:700 11px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+    .toc a { display:block; color:var(--muted); padding:5px 0; text-decoration:none; font-size:14px; }
+    .toc a.on { color:var(--red); font-weight:700; }
+    article { background:var(--paper); padding:clamp(26px,5vw,58px); border:1px solid var(--rule); box-shadow:0 14px 36px rgba(70,58,40,.08); }
+    article h2 { margin:0; font-size:clamp(34px,6vw,58px); line-height:1; letter-spacing:-.045em; font-weight:500; }
+    .byline { margin:15px 0 30px; padding-bottom:15px; color:var(--muted); border-bottom:1px solid var(--rule); font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    article p { max-width:66ch; }
+    article p.lede { font-size:20px; line-height:1.55; }
+    article h3 { margin:32px 0 6px; font-size:21px; }
+    blockquote { margin:28px 0; padding:14px 22px; border-left:3px solid var(--red); background:#f7f1e6; font-style:italic; }
+    .checklist { margin:20px 0 0; padding:0; list-style:none; }
+    .checklist li { padding:7px 0; border-bottom:1px dotted var(--rule); }
+    .checklist li::before { content:"✓"; color:var(--red); margin-right:10px; }
+    .edit { display:inline-block; margin-top:30px; color:var(--red); font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    .fake { pointer-events:none; user-select:none; }
+    @media (max-width:700px) {
+      .wrap { padding:18px 15px 40px; }
+      .appbar .search { display:none; }
+      .layout { grid-template-columns:1fr; gap:14px; }
+      .toc { position:static; display:flex; gap:14px; overflow-x:auto; border-top:1px solid #afa28f; white-space:nowrap; }
+      .toc strong { display:none; }
+      article { padding:26px 22px; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="appbar"><span class="dot"></span><h1>{{APP_NAME}}</h1><span class="tag">DEMO</span></div>
+  <main class="wrap">
+    <header class="appbar"><h1>Aviary</h1><span class="edition">team field notes</span><span class="search fake">Search the archive…</span></header>
 
-    <div class="idcard">
+    <section class="idcard">
       <div class="k">Signed in via Menagerai as</div>
       <div class="email">{{EMAIL}}</div>
       <div class="meta">User ID <code>{{USER_ID}}</code> &middot; Roles <code>{{ROLES}}</code></div>
       <div class="note">These values arrived as <code>X-Menagerai-*</code> request headers, injected by the gateway <em>after</em> it authorized you to reach this app. This app ran no login of its own — it only displays the forwarded identity. The wiki below is fake.</div>
       <a class="back" href="{{PORTAL_URL}}">&larr; Back to portal</a>
-    </div>
+    </section>
 
+    <div class="crumbs">Handbook / New here / Getting started</div>
     <div class="layout">
-      <nav class="card toc fake">
-        <a class="on">Getting started</a>
-        <a>Deployment</a>
-        <a>Runbooks</a>
-        <a>Architecture</a>
-        <a>Onboarding</a>
-        <a>FAQ</a>
+      <nav class="toc fake" aria-label="Wiki sections">
+        <strong>In this handbook</strong><a class="on">Getting started</a><a>Architecture</a><a>Runbooks</a><a>Onboarding</a><a>Field glossary</a><a>FAQ</a>
       </nav>
-      <article class="card">
-        <h2>Getting started</h2>
-        <p class="fake">Welcome to the team wiki. This space collects the living documentation everyone relies on — deployment runbooks, architecture notes, and onboarding checklists.</p>
-        <p class="fake">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam vitae diam nec mauris tincidunt aliquet. Curabitur euismod, arcu at posuere feugiat, urna nisl porttitor orci.</p>
-        <div class="btn fake">Edit page</div>
+      <article>
+        <h2>Welcome to the flock.</h2>
+        <div class="byline">Maintained by People Ops · Reviewed two weeks ago · 6 min read</div>
+        <p class="lede fake">This is the short path from “I have access” to “I know where things live.” Start here, follow the trail, and improve the notes whenever reality drifts.</p>
+        <blockquote class="fake">Good documentation is a garden, not a museum. Leave every page a little clearer than you found it.</blockquote>
+        <h3>Your first morning</h3>
+        <p class="fake">Meet your pairing buddy, join the daily nest check, and clone the workspace. The architecture guide explains the boundaries; the runbooks explain what to do when those boundaries wobble.</p>
+        <ul class="checklist fake"><li>Read the team principles</li><li>Run the local workspace</li><li>Choose a starter issue</li><li>Improve one confusing paragraph</li></ul>
+        <span class="edit fake">✎ Suggest an edit</span>
       </article>
     </div>
-  </div>
+  </main>
 </body>
 </html>

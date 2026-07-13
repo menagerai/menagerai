@@ -5,57 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{APP_NAME}}</title>
   <style>
-    :root { --accent:#7c3aed; --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f9fafb; }
+    :root { --ink:#171717; --purple:#6d3df5; --pink:#ff5c8a; --yellow:#ffe66d; --mint:#a8f0d1; --paper:#fffdf8; }
     * { box-sizing:border-box; }
-    body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-    .wrap { max-width:920px; margin:24px auto; padding:0 20px; }
-    .appbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-    .appbar .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); }
-    .appbar h1 { font-size:19px; margin:0; }
-    .appbar .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:9px; padding:1px 8px; }
-    .idcard { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
-    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    body { margin:0; color:var(--ink); background:#f5edff; font:15px/1.45 Arial,Helvetica,sans-serif; }
+    .shell { max-width:1180px; margin:0 auto; padding:22px; }
+    .appbar { display:flex; align-items:center; gap:18px; padding:13px 16px; background:var(--ink); color:#fff; border:2px solid var(--ink); box-shadow:6px 6px 0 var(--pink); }
+    .appbar h1 { margin:0; font-size:22px; letter-spacing:-.04em; }
+    .appbar h1 span { color:var(--yellow); }
+    .appbar nav { display:flex; gap:4px; margin-left:18px; }
+    .appbar nav a { color:#fff; text-decoration:none; padding:6px 9px; font-size:13px; }
+    .appbar nav a.on { background:var(--purple); }
+    .new { margin-left:auto; padding:8px 12px; color:var(--ink); background:var(--yellow); border:0; font-weight:800; box-shadow:3px 3px 0 var(--pink); }
+
+    /* Intentionally identical across all three mock apps. */
+    .idcard { font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#1f2937;
+              background:#fff; border:1px solid #e5e7eb; border-left:4px solid #2563eb; border-radius:10px;
+              padding:16px 18px; margin-bottom:22px; box-shadow:none; }
+    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; }
     .idcard .email { font-size:19px; font-weight:700; margin:2px 0 6px; word-break:break-all; }
-    .idcard .meta { font-size:13px; color:var(--muted); }
-    .idcard code { background:#f3f4f6; padding:1px 6px; border-radius:4px; font-size:12px; }
-    .idcard .note { margin-top:10px; font-size:12px; color:var(--muted); line-height:1.5; }
-    .idcard .back { display:inline-block; margin-top:10px; color:var(--accent); text-decoration:none; font-size:13px; }
-    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
-    .fake { opacity:.6; pointer-events:none; user-select:none; }
+    .idcard .meta { font-size:13px; color:#6b7280; }
+    .idcard code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#f3f4f6; color:#1f2937; padding:1px 6px; border-radius:4px; font-size:12px; }
+    .idcard .note { margin-top:10px; font-size:12px; color:#6b7280; line-height:1.5; }
+    .idcard .back { display:inline-block; margin-top:10px; color:#2563eb; text-decoration:none; font-size:13px; }
+
+    .idcard { margin-top:24px; }
+    .queue-head { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:28px 0 12px; }
+    .queue-head h2 { margin:0; font-size:clamp(28px,5vw,44px); line-height:.95; letter-spacing:-.06em; }
+    .queue-head p { max-width:330px; margin:0; color:#655c72; font-size:13px; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+    .stat { padding:14px 16px; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); font-weight:800; }
+    .stat:nth-child(1) { background:var(--yellow); }.stat:nth-child(2) { background:var(--mint); }.stat:nth-child(3) { background:#fff; }
+    .stat b { display:block; font-size:25px; line-height:1; }
+    .stat span { font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+    .board { background:var(--paper); border:2px solid var(--ink); box-shadow:7px 7px 0 var(--purple); overflow:hidden; }
+    .filters { display:flex; align-items:center; gap:8px; padding:12px; border-bottom:2px solid var(--ink); background:#fff; }
+    .filter { padding:5px 9px; border:1px solid var(--ink); font-size:12px; font-weight:700; }
+    .filter.on { background:var(--ink); color:#fff; }
+    .filters .search { margin-left:auto; color:#756c7c; border-bottom:1px solid #756c7c; padding:4px 40px 4px 2px; }
     table { width:100%; border-collapse:collapse; }
-    th,td { text-align:left; padding:8px 9px; border-bottom:1px solid var(--line); font-size:13px; }
-    th { font-size:11px; text-transform:uppercase; color:var(--muted); }
-    .badge { display:inline-block; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:600; }
-    .badge.open { background:#eef2ff; color:#3730a3; }
-    .badge.pending { background:#fffbeb; color:#92400e; }
-    .badge.closed { background:#ecfdf5; color:#065f46; }
-    .mine { color:var(--accent); font-weight:600; }
+    th,td { text-align:left; padding:13px 12px; border-bottom:1px solid #d8d0df; }
+    th { background:#f0e9f8; font-size:10px; letter-spacing:.09em; text-transform:uppercase; }
+    tr:last-child td { border-bottom:0; }
+    td:first-child { font-weight:800; }
+    .subject { font-weight:700; }
+    .subject small { display:block; color:#746c79; font-weight:400; margin-top:2px; }
+    .badge { display:inline-block; padding:3px 8px; border:1px solid var(--ink); font-size:11px; font-weight:800; box-shadow:2px 2px 0 var(--ink); }
+    .badge.open { background:var(--pink); }.badge.pending { background:var(--yellow); }.badge.closed { background:var(--mint); }
+    .mine { color:var(--purple); font-weight:800; }
+    .fake { pointer-events:none; user-select:none; }
+    @media (max-width:720px) {
+      .shell { padding:14px; }
+      .appbar nav { display:none; }
+      .new { font-size:0; }.new::after { content:"+"; font-size:20px; }
+      .queue-head { display:block; }.queue-head p { margin-top:10px; }
+      .stats { grid-template-columns:1fr 1fr; }.stat:last-child { grid-column:1 / -1; }
+      .filters .search { display:none; }
+      table,tbody,tr,td { display:block; }
+      thead { display:none; }
+      tr { padding:12px; border-bottom:2px solid var(--ink); }
+      tr:last-child { border-bottom:0; }
+      td { display:grid; grid-template-columns:90px minmax(0,1fr); gap:8px; padding:5px 0; border:0; }
+      td::before { content:attr(data-label); color:#756c7c; font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="appbar"><span class="dot"></span><h1>{{APP_NAME}}</h1><span class="tag">DEMO</span></div>
+  <main class="shell">
+    <header class="appbar"><h1>Perch<span>Desk</span></h1><nav class="fake"><a class="on">Inbox</a><a>Customers</a><a>Reports</a></nav><button class="new fake">+ New ticket</button></header>
 
-    <div class="idcard">
+    <section class="idcard">
       <div class="k">Signed in via Menagerai as</div>
       <div class="email">{{EMAIL}}</div>
       <div class="meta">User ID <code>{{USER_ID}}</code> &middot; Roles <code>{{ROLES}}</code></div>
       <div class="note">These values arrived as <code>X-Menagerai-*</code> request headers, injected by the gateway <em>after</em> it authorized you to reach this app. This app ran no login of its own — it only displays the forwarded identity. The ticket queue below is fake.</div>
       <a class="back" href="{{PORTAL_URL}}">&larr; Back to portal</a>
-    </div>
+    </section>
 
-    <div class="card">
-      <strong>Ticket queue</strong>
-      <table>
-        <thead><tr><th>#</th><th>Subject</th><th>Status</th><th>Assignee</th></tr></thead>
-        <tbody>
-          <tr><td>4821</td><td class="fake">Login button misaligned on mobile</td><td><span class="badge open">Open</span></td><td class="mine">{{EMAIL}}</td></tr>
-          <tr><td>4820</td><td class="fake">Export to CSV times out</td><td><span class="badge pending">Pending</span></td><td class="mine">{{EMAIL}}</td></tr>
-          <tr class="fake"><td>4819</td><td>Add dark mode</td><td><span class="badge open">Open</span></td><td>unassigned</td></tr>
-          <tr class="fake"><td>4818</td><td>Typo on pricing page</td><td><span class="badge closed">Closed</span></td><td>casey@demo</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+    <div class="queue-head"><h2>Good morning.<br>Let’s clear the queue.</h2><p>Four conversations need attention. Two are already assigned to you.</p></div>
+    <section class="stats fake"><div class="stat"><b>04</b><span>Waiting now</span></div><div class="stat"><b>12m</b><span>First response</span></div><div class="stat"><b>94%</b><span>Happy customers</span></div></section>
+    <section class="board">
+      <div class="filters fake"><span class="filter on">All 4</span><span class="filter">Mine 2</span><span class="filter">Unassigned 1</span><span class="search">Search tickets…</span></div>
+      <table><thead><tr><th>#</th><th>Conversation</th><th>Status</th><th>Assignee</th></tr></thead><tbody>
+        <tr><td data-label="Ticket">4821</td><td data-label="Conversation" class="subject">Login button misaligned on mobile<small>Acme Studio · 6 min ago</small></td><td data-label="Status"><span class="badge open">Open</span></td><td data-label="Assignee" class="mine">{{EMAIL}}</td></tr>
+        <tr><td data-label="Ticket">4820</td><td data-label="Conversation" class="subject">Export to CSV times out<small>Northstar Labs · 18 min ago</small></td><td data-label="Status"><span class="badge pending">Pending</span></td><td data-label="Assignee" class="mine">{{EMAIL}}</td></tr>
+        <tr class="fake"><td data-label="Ticket">4819</td><td data-label="Conversation" class="subject">Could we get dark mode?<small>Juniper & Co. · 42 min ago</small></td><td data-label="Status"><span class="badge open">Open</span></td><td data-label="Assignee">unassigned</td></tr>
+        <tr class="fake"><td data-label="Ticket">4818</td><td data-label="Conversation" class="subject">Typo on pricing page<small>Bluebird Works · yesterday</small></td><td data-label="Status"><span class="badge closed">Closed</span></td><td data-label="Assignee">casey@demo</td></tr>
+      </tbody></table>
+    </section>
+  </main>
 </body>
 </html>

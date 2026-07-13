@@ -5,75 +5,109 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{APP_NAME}}</title>
   <style>
-    :root { --accent:#2563eb; --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f9fafb; }
+    :root { --ink:#dffbff; --muted:#78949f; --panel:#0c1920; --line:#17313b; --cyan:#39f4df; --lime:#b7ff5a; }
     * { box-sizing:border-box; }
-    body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-    .wrap { max-width:920px; margin:24px auto; padding:0 20px; }
-    .appbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
-    .appbar .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); }
-    .appbar h1 { font-size:19px; margin:0; }
-    .appbar .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:9px; padding:1px 8px; }
-    .idcard { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:16px 18px; margin-bottom:18px; }
-    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+    body { margin:0; color:var(--ink); background:#061015;
+           font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.28;
+                   background-image:linear-gradient(rgba(57,244,223,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(57,244,223,.045) 1px,transparent 1px);
+                   background-size:28px 28px; }
+    .wrap { position:relative; max-width:1160px; margin:0 auto; padding:24px; }
+    .appbar { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .mark { display:grid; place-items:center; width:38px; height:38px; color:#061015; background:var(--cyan); font-weight:900; box-shadow:5px 5px 0 #16434a; }
+    .appbar h1 { margin:0; font-size:18px; letter-spacing:.03em; text-transform:uppercase; }
+    .appbar .live { margin-left:auto; color:var(--lime); font-size:11px; letter-spacing:.08em; }
+    .appbar .live::before { content:""; display:inline-block; width:7px; height:7px; margin-right:7px; border-radius:50%; background:var(--lime); box-shadow:0 0 10px var(--lime); }
+
+    /* Intentionally identical across all three mock apps. */
+    .idcard { font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#1f2937;
+              background:#fff; border:1px solid #e5e7eb; border-left:4px solid #2563eb; border-radius:10px;
+              padding:16px 18px; margin-bottom:22px; box-shadow:none; }
+    .idcard .k { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; }
     .idcard .email { font-size:19px; font-weight:700; margin:2px 0 6px; word-break:break-all; }
-    .idcard .meta { font-size:13px; color:var(--muted); }
-    .idcard code { background:#f3f4f6; padding:1px 6px; border-radius:4px; font-size:12px; }
-    .idcard .note { margin-top:10px; font-size:12px; color:var(--muted); line-height:1.5; }
-    .idcard .back { display:inline-block; margin-top:10px; color:var(--accent); text-decoration:none; font-size:13px; }
-    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:14px; }
-    .fake { opacity:.55; pointer-events:none; user-select:none; }
-    .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
-    .kpi { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; }
-    .kpi .n { font-size:24px; font-weight:700; }
-    .kpi .l { font-size:12px; color:var(--muted); }
-    .bars { display:flex; align-items:flex-end; gap:10px; height:120px; margin-top:6px; }
-    .bars .b { flex:1; background:var(--accent); border-radius:4px 4px 0 0; opacity:.8; }
+    .idcard .meta { font-size:13px; color:#6b7280; }
+    .idcard code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:#f3f4f6; color:#1f2937; padding:1px 6px; border-radius:4px; font-size:12px; }
+    .idcard .note { margin-top:10px; font-size:12px; color:#6b7280; line-height:1.5; }
+    .idcard .back { display:inline-block; margin-top:10px; color:#2563eb; text-decoration:none; font-size:13px; }
+
+    .toolbar { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:26px 0 12px; }
+    .toolbar h2 { margin:0; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); }
+    .toolbar .range { color:var(--muted); border-bottom:1px solid var(--cyan); padding-bottom:3px; }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
+    .kpi { background:var(--panel); padding:18px; min-width:0; }
+    .kpi .n { font-size:clamp(22px,3vw,34px); line-height:1.1; color:#fff; letter-spacing:-.05em; }
+    .kpi .l { margin-top:8px; color:var(--muted); font-size:11px; text-transform:uppercase; }
+    .kpi .delta { color:var(--lime); font-size:11px; }
+    .dashboard { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(260px,.8fr); gap:14px; margin-top:14px; }
+    .panel { background:rgba(12,25,32,.92); border:1px solid var(--line); padding:18px; }
+    .dashboard > .panel:last-child { grid-column:1 / -1; }
+    .panel-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:16px; color:#fff; }
+    .panel-head span { color:var(--muted); font-size:11px; }
+    .bars { display:flex; align-items:flex-end; gap:clamp(6px,2vw,16px); height:190px; padding:16px 8px 0; border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+            background:repeating-linear-gradient(to bottom,transparent 0,transparent 46px,var(--line) 47px); }
+    .bar { flex:1; min-width:12px; background:linear-gradient(180deg,var(--cyan),#117c82); box-shadow:0 0 16px rgba(57,244,223,.16); }
+    .signals { display:grid; gap:1px; background:var(--line); }
+    .signal { display:grid; grid-template-columns:1fr auto; gap:6px; padding:12px; background:var(--panel); }
+    .signal small { color:var(--muted); }
+    .signal b { color:var(--lime); }
     table { width:100%; border-collapse:collapse; }
-    th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); font-size:13px; }
-    th { font-size:11px; text-transform:uppercase; color:var(--muted); }
+    th,td { padding:10px 8px; border-bottom:1px solid var(--line); text-align:left; }
+    th { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+    td:nth-child(n+2),th:nth-child(n+2) { text-align:right; }
+    .fake { pointer-events:none; user-select:none; }
+    @media (max-width:760px) {
+      .wrap { padding:16px; }
+      .kpis { grid-template-columns:repeat(2,1fr); }
+      .dashboard { grid-template-columns:1fr; }
+      .appbar .live { font-size:0; }
+      .appbar .live::before { margin-right:0; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="appbar"><span class="dot"></span><h1>{{APP_NAME}}</h1><span class="tag">DEMO</span></div>
+  <main class="wrap">
+    <header class="appbar"><div class="mark">P/</div><h1>{{APP_NAME}}</h1><div class="live">STREAM CONNECTED</div></header>
 
-    <div class="idcard">
+    <section class="idcard">
       <div class="k">Signed in via Menagerai as</div>
       <div class="email">{{EMAIL}}</div>
       <div class="meta">User ID <code>{{USER_ID}}</code> &middot; Roles <code>{{ROLES}}</code></div>
       <div class="note">These values arrived as <code>X-Menagerai-*</code> request headers, injected by the gateway <em>after</em> it authorized you to reach this app. This app ran no login of its own — it only displays the forwarded identity. The dashboard below is fake.</div>
       <a class="back" href="{{PORTAL_URL}}">&larr; Back to portal</a>
-    </div>
+    </section>
 
-    <div class="kpis fake">
-      <div class="kpi"><div class="n">18,204</div><div class="l">Sessions (7d)</div></div>
-      <div class="kpi"><div class="n">3.9%</div><div class="l">Conversion</div></div>
-      <div class="kpi"><div class="n">1,042</div><div class="l">New users</div></div>
-      <div class="kpi"><div class="n">4m 12s</div><div class="l">Avg. session</div></div>
-    </div>
+    <div class="toolbar"><h2>Acquisition pulse</h2><div class="range fake">LAST 7 DAYS ▾</div></div>
+    <section class="kpis fake">
+      <div class="kpi"><div class="n">18.2k</div><div class="l">Sessions</div><div class="delta">↗ 12.4%</div></div>
+      <div class="kpi"><div class="n">3.9%</div><div class="l">Conversion</div><div class="delta">↗ 0.6%</div></div>
+      <div class="kpi"><div class="n">1,042</div><div class="l">New users</div><div class="delta">↗ 8.1%</div></div>
+      <div class="kpi"><div class="n">04:12</div><div class="l">Avg. session</div><div class="delta">↗ 00:18</div></div>
+    </section>
 
-    <div class="card fake">
-      <strong>Traffic — last 7 days</strong>
-      <div class="bars">
-        <div class="b" style="height:40%"></div><div class="b" style="height:65%"></div>
-        <div class="b" style="height:52%"></div><div class="b" style="height:80%"></div>
-        <div class="b" style="height:70%"></div><div class="b" style="height:95%"></div>
-        <div class="b" style="height:60%"></div>
+    <section class="dashboard fake">
+      <div class="panel">
+        <div class="panel-head"><strong>TRAFFIC / HOURLY</strong><span>UTC+0 · LIVE</span></div>
+        <div class="bars" aria-label="Fake traffic bar chart">
+          <div class="bar" style="height:34%"></div><div class="bar" style="height:52%"></div><div class="bar" style="height:43%"></div>
+          <div class="bar" style="height:68%"></div><div class="bar" style="height:61%"></div><div class="bar" style="height:88%"></div><div class="bar" style="height:73%"></div>
+        </div>
       </div>
-    </div>
-
-    <div class="card fake">
-      <strong>Top pages</strong>
-      <table>
-        <thead><tr><th>Path</th><th>Views</th><th>Bounce</th></tr></thead>
-        <tbody>
-          <tr><td>/</td><td>8,431</td><td>38%</td></tr>
-          <tr><td>/pricing</td><td>2,190</td><td>44%</td></tr>
-          <tr><td>/docs</td><td>1,872</td><td>29%</td></tr>
-          <tr><td>/blog/launch</td><td>1,304</td><td>51%</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+      <div class="panel">
+        <div class="panel-head"><strong>ACTIVE SIGNALS</strong><span>NOW</span></div>
+        <div class="signals">
+          <div class="signal"><span>Checkout funnel<br><small>/pricing → /pay</small></span><b>+18%</b></div>
+          <div class="signal"><span>Docs referrals<br><small>organic search</small></span><b>+11%</b></div>
+          <div class="signal"><span>Launch campaign<br><small>utm: summer</small></span><b>+7%</b></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><strong>TOP ROUTES</strong><span>SESSIONS</span></div>
+        <table><thead><tr><th>Path</th><th>Views</th><th>Bounce</th></tr></thead><tbody>
+          <tr><td>/</td><td>8,431</td><td>38%</td></tr><tr><td>/pricing</td><td>2,190</td><td>44%</td></tr>
+          <tr><td>/docs</td><td>1,872</td><td>29%</td></tr><tr><td>/blog/launch</td><td>1,304</td><td>51%</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
