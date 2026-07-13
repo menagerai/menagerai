@@ -80,6 +80,27 @@ export function parseRoster(rows: unknown[][]): { email: string; name: string }[
   return out;
 }
 
+// Decode uploaded CSV bytes before cell parsing. Excel and similar tools commonly
+// emit BOM-tagged UTF-8 or UTF-16 CSV files; decoding them as unconditional UTF-8
+// turns UTF-16 into NUL-filled mojibake and invalidates otherwise valid rows.
+export function decodeCsvBuffer(buf: Buffer): string {
+  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    return buf.toString('utf8', 3);
+  }
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return buf.toString('utf16le', 2);
+  }
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    const le = Buffer.allocUnsafe(buf.length - 2);
+    for (let i = 2; i + 1 < buf.length; i += 2) {
+      le[i - 2] = buf[i + 1];
+      le[i - 1] = buf[i];
+    }
+    return le.toString('utf16le');
+  }
+  return buf.toString('utf8');
+}
+
 // Minimal RFC 4180-style CSV reader for roster imports. Supports quoted fields,
 // doubled quotes, CRLF/LF line endings, and preserves the same 2-D cell shape that
 // parseRoster already consumes.

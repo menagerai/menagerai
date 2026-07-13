@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decodeCsvBuffer,
   parseCsvRows,
   parseJson,
   parseRoster,
@@ -118,5 +119,23 @@ describe('parseCsvRows', () => {
       ['a@example.com', 'Ada, A.'],
       ['b@example.com', 'Bob "B"'],
     ]);
+  });
+});
+
+describe('decodeCsvBuffer', () => {
+  it('decodes UTF-8 and UTF-16 CSV BOMs before parsing', () => {
+    const utf8 = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('Email,Name\na@example.com,Ada')]);
+    const utf16le = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('Email,Name\na@example.com,Ada', 'utf16le')]);
+    const utf16beBody = Buffer.from('Email,Name\na@example.com,Ada', 'utf16le');
+    for (let i = 0; i + 1 < utf16beBody.length; i += 2) {
+      const first = utf16beBody[i];
+      utf16beBody[i] = utf16beBody[i + 1];
+      utf16beBody[i + 1] = first;
+    }
+    const utf16be = Buffer.concat([Buffer.from([0xfe, 0xff]), utf16beBody]);
+
+    for (const input of [utf8, utf16le, utf16be]) {
+      expect(parseRoster(parseCsvRows(decodeCsvBuffer(input)))).toEqual([{ email: 'a@example.com', name: 'Ada' }]);
+    }
   });
 });

@@ -8,7 +8,7 @@ import { requireAdmin } from '../middleware/auth';
 import { config } from '../config';
 import { managementConfigured } from '../idp/config';
 import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS } from '../usage';
-import { parseCsvRows, parseRoster } from '../admin-logic';
+import { decodeCsvBuffer, parseCsvRows, parseRoster } from '../admin-logic';
 import { ApiError, NotFoundError } from '../services/errors';
 import { isSuperadmin, PROTECTED_ROLE } from '../services/common';
 import * as usersSvc from '../services/users';
@@ -150,7 +150,7 @@ adminRouter.post('/users/import', importUpload.single('file'), async (req, res) 
   // in the UI; the API import endpoint accepts the roster as JSON directly.)
   let roster: { email: string; name: string }[];
   try {
-    roster = parseRoster(parseCsvRows(req.file.buffer.toString('utf8')));
+    roster = parseRoster(parseCsvRows(decodeCsvBuffer(req.file.buffer)));
   } catch (err) {
     console.error('roster parse failed', err);
     return flash(res, '/admin/users/import', 'flash.importParseFailed');
