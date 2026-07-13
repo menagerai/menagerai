@@ -67,11 +67,6 @@ export function buildPublicApp(opts: { mountGateway: boolean; startup: StartupCh
   app.use(express.urlencoded({ extended: true }));
   // Public static assets (favicon, etc.) — served before auth, no identity needed.
   app.use(express.static(path.resolve(__dirname, '..', 'public'), { maxAge: '1d' }));
-  // Persona artwork belongs to the throwaway demo and is not exposed by normal
-  // deployments. Keep its URL separate from the application's shared assets.
-  if (config.demoMode) {
-    app.use('/demo-personas', express.static(path.resolve(__dirname, '..', 'demo', 'public'), { maxAge: '1d' }));
-  }
   app.use(loadUser);
 
   // Startup config gate: when the Logto env/connection preflight failed, serve a
