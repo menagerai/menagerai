@@ -1,22 +1,27 @@
 <%- include('partials/head', { title: t('demo.loginTitle'), user: null, isAdmin: false }) %>
 
-<h1><%= t('demo.loginTitle') %></h1>
-<p class="muted"><%= t('demo.loginIntro') %></p>
+<div class="demo-login">
+  <h1><%= t('demo.loginTitle') %></h1>
+  <p class="muted"><%= t('demo.loginIntro') %></p>
 
-<div class="grid">
-  <% personas.forEach(function (p) { %>
-    <div class="card">
-      <div><strong><%= p.name %></strong></div>
-      <div class="desc"><code><%= p.email %></code></div>
-      <div class="desc"><%= t('demo.rolesLabel') %>: <%= p.roles.join(', ') %></div>
-      <div class="desc"><%= t('demo.persona.' + p.key) %></div>
-      <form method="post" action="/demo/login" style="margin-top:10px">
-        <input type="hidden" name="email" value="<%= p.email %>" />
-        <input type="hidden" name="next" value="<%= next %>" />
-        <button type="submit" class="btn primary"><%= t('demo.signInAs', { name: p.name }) %></button>
-      </form>
-    </div>
-  <% }) %>
+  <div class="grid persona-grid">
+    <% personas.forEach(function (p) { %>
+      <div class="card persona-card">
+        <img class="persona-art" src="/demo/personas/<%= p.key %>.svg" width="256" height="256" alt="" loading="lazy" />
+        <div class="persona-copy">
+          <div class="persona-name"><strong><%= p.name %></strong></div>
+          <div class="desc"><code><%= p.email %></code></div>
+          <div class="persona-roles"><%= t('demo.rolesLabel') %>: <%= p.roles.join(', ') %></div>
+          <div class="desc"><%= t('demo.persona.' + p.key) %></div>
+        </div>
+        <form method="post" action="/demo/login">
+          <input type="hidden" name="email" value="<%= p.email %>" />
+          <input type="hidden" name="next" value="<%= next %>" />
+          <button type="submit" class="btn primary"><%= t('demo.signInAs', { name: p.name }) %></button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
 </div>
 
 <%- include('partials/foot') %>
