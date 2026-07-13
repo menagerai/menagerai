@@ -20,11 +20,26 @@
     .container { max-width:1040px; margin:0 auto; padding:0 22px; }
 
     /* Nav */
-    nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+    .site-nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
     .wordmark { font-weight:800; font-size:19px; letter-spacing:-.01em; }
     .wordmark .dot { color:var(--accent); }
-    nav .links { display:flex; gap:22px; align-items:center; font-size:14px; color:var(--muted); }
-    nav .links a:hover { color:var(--fg); }
+    .site-menu { position:relative; }
+    .site-menu > summary { display:none; }
+    .site-menu .links { display:flex; gap:22px; align-items:center; font-size:14px; color:var(--muted); }
+    .site-menu .links a:hover { color:var(--fg); }
+    @media (max-width:600px) {
+      .site-nav { padding:14px 0; }
+      .site-menu > summary { list-style:none; display:grid; place-items:center; width:40px; height:40px; cursor:pointer;
+                            border:1px solid var(--line); border-radius:9px; font-size:22px; line-height:1; }
+      .site-menu > summary::-webkit-details-marker { display:none; }
+      .site-menu > summary:hover, .site-menu[open] > summary { background:rgba(255,255,255,.06); }
+      .site-menu:not([open]) > .links { display:none; }
+      .site-menu .links { position:absolute; top:calc(100% + 8px); right:0; z-index:10; min-width:180px; padding:7px;
+                         flex-direction:column; align-items:stretch; gap:2px; color:var(--fg); background:var(--panel);
+                         border:1px solid var(--line); border-radius:11px; box-shadow:0 14px 34px rgba(0,0,0,.35); }
+      .site-menu .links a { padding:9px 11px; border-radius:7px; }
+      .site-menu .links a:hover { background:rgba(255,255,255,.06); }
+    }
 
     /* Hero */
     .hero { position:relative; overflow:hidden; padding:48px 0 72px; text-align:center;
@@ -92,13 +107,16 @@
 </head>
 <body>
   <header class="container">
-    <nav>
+    <nav class="site-nav" aria-label="Main navigation">
       <div class="wordmark">Ménagerai<span class="dot">.</span></div>
-      <div class="links">
-        <a href="#what">What it is</a>
-        <a href="#how">How it works</a>
-        <a href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">GitHub ↗</a>
-      </div>
+      <details class="site-menu">
+        <summary aria-label="Navigation menu">☰</summary>
+        <div class="links">
+          <a href="#what">What it is</a>
+          <a href="#how">How it works</a>
+          <a href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">GitHub ↗</a>
+        </div>
+      </details>
     </nav>
   </header>
 
@@ -188,5 +206,16 @@
       </div>
     </div>
   </footer>
+  <script>
+    // Match the portal's native <details> menus: dismiss after choosing a link
+    // or tapping outside the open mobile panel.
+    (function () {
+      var menu = document.querySelector('.site-menu');
+      document.addEventListener('click', function (event) {
+        if (!menu.open) return;
+        if (!menu.contains(event.target) || event.target.closest('.links a')) menu.removeAttribute('open');
+      });
+    })();
+  </script>
 </body>
 </html>

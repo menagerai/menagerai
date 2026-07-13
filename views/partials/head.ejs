@@ -104,7 +104,7 @@
     .demo-login { max-width:980px; }
     .demo-login .muted { margin:0 0 18px; }
     .persona-grid { grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; align-items:stretch; }
-    .persona-card { display:flex; flex-direction:column; gap:12px; min-height:100%; padding:18px; border-radius:16px;
+    .persona-card { display:flex; flex-direction:column; gap:12px; padding:18px; border-radius:16px;
             box-shadow:0 14px 36px rgba(31,41,55,.06); }
     .persona-card .persona-art { width:118px; height:118px; border-radius:28px; align-self:center; display:block;
             object-fit:cover; background:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.7); }
@@ -118,9 +118,11 @@
             white-space:nowrap; }
     @media (max-width:767px) {
       .persona-grid { grid-template-columns:1fr; }
-      .persona-card { display:grid; grid-template-columns:86px 1fr; gap:12px 14px; align-items:center; }
-      .persona-card .persona-art { width:86px; height:86px; border-radius:22px; }
-      .persona-card form { grid-column:1 / -1; }
+      .persona-card { display:grid; grid-template:"art copy" auto "action action" auto / 86px minmax(0,1fr);
+              gap:12px 14px; align-items:center; }
+      .persona-card .persona-art { grid-area:art; width:86px; height:86px; border-radius:22px; }
+      .persona-card .persona-copy { grid-area:copy; }
+      .persona-card form { grid-area:action; margin-top:0; }
     }
     .app-tile { display:block; background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; }
     .app-tile:hover { border-color:var(--accent); text-decoration:none; }
