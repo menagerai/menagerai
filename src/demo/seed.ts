@@ -13,6 +13,7 @@ import { AppOverride } from '../types';
 export interface DemoPersona {
   key: string; // stable id for the i18n blurb (demo.persona.<key>) and picker order
   email: string; // lowercased; also the login selector — must be unique
+  shortName: string; // compact picker label; the seeded user name remains descriptive
   name: string;
   roles: string[];
   overrides: { app: string; effect: 'allow' | 'deny'; reason: string }[];
@@ -54,6 +55,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
   {
     key: 'ada',
     email: `ada@${DEMO_DOMAIN}`,
+    shortName: 'Ada',
     name: 'Ada (Superadmin)',
     roles: ['system_admin', 'analyst', 'editor', 'support'],
     overrides: [],
@@ -61,6 +63,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
   {
     key: 'bo',
     email: `bo@${DEMO_DOMAIN}`,
+    shortName: 'Bo',
     name: 'Bo (Analyst)',
     roles: ['analyst'],
     overrides: [],
@@ -68,6 +71,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
   {
     key: 'cam',
     email: `cam@${DEMO_DOMAIN}`,
+    shortName: 'Cam',
     name: 'Cam (Editor)',
     // editor → wiki; plus a per-user allow on desk to demo the override path.
     roles: ['editor'],
@@ -76,6 +80,7 @@ export const DEMO_PERSONAS: DemoPersona[] = [
   {
     key: 'dee',
     email: `dee@${DEMO_DOMAIN}`,
+    shortName: 'Dee',
     name: 'Dee (Support, wiki revoked)',
     // support → desk + wiki; a per-user deny on wiki demonstrates deny beating a
     // role grant (decideFrom precedence), leaving Dee with desk only.

@@ -32,8 +32,8 @@ vi.mock('../src/sessions', () => ({
 vi.mock('../src/demo/seed', () => ({
   seedDemo: h.seedDemo,
   DEMO_PERSONAS: [
-    { key: 'ada', email: 'ada@demo.menagerai.dev', name: 'Ada', roles: ['system_admin'], overrides: [] },
-    { key: 'bo', email: 'bo@demo.menagerai.dev', name: 'Bo', roles: ['analyst'], overrides: [] },
+    { key: 'ada', email: 'ada@demo.menagerai.dev', shortName: 'Ada', name: 'Ada', roles: ['system_admin'], overrides: [] },
+    { key: 'bo', email: 'bo@demo.menagerai.dev', shortName: 'Bo', name: 'Bo', roles: ['analyst'], overrides: [] },
   ],
 }));
 vi.mock('../src/demo/reset', () => ({ armReset: h.armReset, getResetAt: h.getResetAt }));
@@ -74,6 +74,8 @@ describe('GET /login (persona picker)', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('ada@demo.menagerai.dev');
     expect(res.text).toContain('bo@demo.menagerai.dev');
+    expect(res.text).toContain('/demo-personas/ada.png');
+    expect(res.text).toContain('>Ada</button>');
   });
 });
 

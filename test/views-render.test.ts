@@ -40,7 +40,7 @@ const cases: [string, Record<string, unknown>][] = [
       demoMode: true,
       demoResetAt: null,
       next: '/',
-      personas: [{ key: 'bo', email: 'bo@demo.menagerai.dev', name: 'Bo (Analyst)', roles: ['analyst'], overrides: [] }],
+      personas: [{ key: 'bo', email: 'bo@demo.menagerai.dev', shortName: 'Bo', name: 'Bo (Analyst)', roles: ['analyst'], overrides: [] }],
     },
   ],
   // Armed demo banner (countdown branch) + GA tag injection on the launcher.

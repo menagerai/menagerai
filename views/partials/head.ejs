@@ -107,13 +107,15 @@
     .persona-card { display:flex; flex-direction:column; gap:12px; min-height:100%; padding:18px; border-radius:16px;
             box-shadow:0 14px 36px rgba(31,41,55,.06); }
     .persona-card .persona-art { width:118px; height:118px; border-radius:28px; align-self:center; display:block;
-            background:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.7); }
+            object-fit:cover; background:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.7); }
     .persona-card .persona-name { font-size:15px; line-height:1.3; }
-    .persona-card .persona-copy { display:flex; flex-direction:column; gap:5px; flex:1 1 auto; }
+    .persona-card .persona-copy { display:flex; flex-direction:column; gap:5px; flex:1 1 auto; min-width:0; }
     .persona-card .persona-copy .desc { color:var(--fg); }
+    .persona-card .desc { overflow-wrap:anywhere; }
     .persona-card .persona-roles { color:var(--muted); font-size:13px; }
     .persona-card form { margin-top:auto; }
-    .persona-card .btn { width:100%; display:inline-flex; justify-content:center; align-items:center; min-height:42px; }
+    .persona-card .btn { width:100%; display:inline-flex; justify-content:center; align-items:center; min-height:42px;
+            white-space:nowrap; }
     @media (max-width:767px) {
       .persona-grid { grid-template-columns:1fr; }
       .persona-card { display:grid; grid-template-columns:86px 1fr; gap:12px 14px; align-items:center; }

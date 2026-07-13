@@ -32,6 +32,7 @@ COPY package*.json ./
 COPY --from=build /app/dist ./dist
 COPY views ./views
 COPY public ./public
+COPY demo/public ./demo/public
 COPY locales ./locales
 
 EXPOSE 3000
