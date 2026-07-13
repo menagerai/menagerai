@@ -22,8 +22,12 @@ let timer: NodeJS.Timeout | null = null;
 let resetting = false;
 
 // All collections that hold mutable state — wiped on reset, then reseeded.
+// Sessions lead so a request arriving mid-wipe loses its identity first and falls
+// through to the login picker rather than acting on soon-to-be-gone data (see the
+// deletion loop in performReset). The rest don't gate identity, so their order is
+// incidental.
 function allCollections() {
-  return [col.users, col.roles, col.apps, col.emailRules, col.sessions, col.audit, col.usageDaily, col.apiKeys];
+  return [col.sessions, col.users, col.roles, col.apps, col.emailRules, col.audit, col.usageDaily, col.apiKeys];
 }
 
 // Epoch ms when the next reset will fire, or null when idle. Surfaced to the
