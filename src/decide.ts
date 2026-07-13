@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { col } from './db';
 import { config } from './config';
 import { AppDoc, Decision, Role, User } from './types';
+import { ttlCache } from './ttl-cache';
 
 /**
  * The single authorization decision — PURE and total. All callers funnel here.
@@ -60,18 +61,13 @@ export async function decide(user: User | null, appKey: string): Promise<Decisio
 // it briefly so the hottest path in the system makes at most one apps.findOne
 // per app per TTL instead of one (or two) per request. Evicted wholesale on any
 // app/role edit via evictAll().
-interface AppCacheEntry {
-  app: AppDoc | null;
-  at: number;
-}
-const appCache = new Map<string, AppCacheEntry>();
+const appCache = ttlCache<string, AppDoc | null>(config.appCacheTtlMs);
 
 export async function appCached(appKey: string): Promise<AppDoc | null> {
   const hit = appCache.get(appKey);
-  const now = Date.now();
-  if (hit && now - hit.at < config.appCacheTtlMs) return hit.app;
+  if (hit !== undefined) return hit;
   const app = await col.apps.findOne({ key: appKey });
-  appCache.set(appKey, { app, at: now });
+  appCache.set(appKey, app);
   return app;
 }
 
@@ -80,28 +76,19 @@ export async function appCached(appKey: string): Promise<AppDoc | null> {
 // doc it resolves changes rarely. Cache it for a short TTL keyed by user id, so
 // back-to-back requests from the same user skip the users.findOne. Evicted
 // instantly on any user change via evictUser().
-interface UserCacheEntry {
-  user: User | null;
-  at: number;
-}
-const userCache = new Map<string, UserCacheEntry>();
+const userCache = ttlCache<string, User | null>(config.userCacheTtlMs);
 
 export async function userCached(userId: ObjectId): Promise<User | null> {
   const key = String(userId);
   const hit = userCache.get(key);
-  const now = Date.now();
-  if (hit && now - hit.at < config.userCacheTtlMs) return hit.user;
+  if (hit !== undefined) return hit;
   const user = await col.users.findOne({ _id: userId });
-  userCache.set(key, { user, at: now });
+  userCache.set(key, user);
   return user;
 }
 
 // ---- Short-lived in-process decision cache for the gateway hot path ----
-interface CacheEntry {
-  decision: Decision;
-  at: number;
-}
-const cache = new Map<string, CacheEntry>();
+const cache = ttlCache<string, Decision>(config.decisionCacheTtlMs);
 
 function cacheKey(userId: string, appKey: string): string {
   return `${userId}::${appKey}`;
@@ -112,10 +99,9 @@ function cacheKey(userId: string, appKey: string): string {
 export async function decideCached(user: User, appKey: string): Promise<Decision> {
   const key = cacheKey(String(user._id), appKey);
   const hit = cache.get(key);
-  const now = Date.now();
-  if (hit && now - hit.at < config.decisionCacheTtlMs) return hit.decision;
+  if (hit) return hit;
   const decision = await decide(user, appKey);
-  cache.set(key, { decision, at: now });
+  cache.set(key, decision);
   return decision;
 }
 
@@ -124,9 +110,7 @@ export async function decideCached(user: User, appKey: string): Promise<Decision
 // change takes effect on the very next request.
 export function evictUser(userId: string): void {
   const prefix = `${userId}::`;
-  for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) cache.delete(key);
-  }
+  cache.deleteWhere((key) => key.startsWith(prefix));
   userCache.delete(userId);
 }
 

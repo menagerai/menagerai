@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseCsvRows,
   parseJson,
   parseRoster,
   validateOverride,
@@ -105,5 +106,17 @@ describe('parseRoster', () => {
       ['still-bad', 'X'],
     ];
     expect(parseRoster(rows)).toEqual([{ email: 'still-bad', name: 'X' }]);
+  });
+});
+
+
+
+describe('parseCsvRows', () => {
+  it('supports quoted commas, escaped quotes, and CRLF rows', () => {
+    expect(parseCsvRows('Email,Name\r\n"a@example.com","Ada, A."\r\n"b@example.com","Bob ""B"""')).toEqual([
+      ['Email', 'Name'],
+      ['a@example.com', 'Ada, A.'],
+      ['b@example.com', 'Bob "B"'],
+    ]);
   });
 });

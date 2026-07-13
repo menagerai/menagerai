@@ -2,12 +2,13 @@ import { Request, Router } from 'express';
 import { col } from '../db';
 import { decide } from '../decide';
 import { getIdentityProvider } from '../idp';
+import { ttlCache } from '../ttl-cache';
 
 export const accessRouter = Router();
 
 // Small cache so repeated checks for the same token don't hit Logto each time.
-const tokenCache = new Map<string, { sub: string; at: number }>();
 const TOKEN_TTL = 60_000;
+const tokenCache = ttlCache<string, string>(TOKEN_TTL);
 
 function bearer(req: Request): string | null {
   const h = req.get('authorization') || '';
@@ -16,11 +17,10 @@ function bearer(req: Request): string | null {
 
 async function subjectFromToken(token: string): Promise<string | null> {
   const hit = tokenCache.get(token);
-  const now = Date.now();
-  if (hit && now - hit.at < TOKEN_TTL) return hit.sub;
+  if (hit) return hit;
   const info = await getIdentityProvider()?.userinfo(token);
   if (!info) return null;
-  tokenCache.set(token, { sub: info.sub, at: now });
+  tokenCache.set(token, info.sub);
   return info.sub;
 }
 

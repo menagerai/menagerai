@@ -10,7 +10,7 @@
 <form class="card" method="post" action="/admin/users/import" enctype="multipart/form-data">
   <p><label><%= t('usersImport.fileLabel') %>
     <%- include('../partials/info', { tip: t('usersImport.fileTip') }) %>
-    <br /><input name="file" type="file" accept=".xlsx,.xls,.csv" required /></label></p>
+    <br /><input name="file" type="file" accept=".csv,text/csv" required /></label></p>
 
   <p><label><input type="checkbox" name="auto_rule" /> <%= t('usersImport.autoRuleLabel') %></label>
     <%- include('../partials/info', { tip: t('usersImport.autoRuleTip') }) %></p>

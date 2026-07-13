@@ -29,11 +29,14 @@ export function createLogtoProvider(cfg: ProviderConfig): IdentityProvider {
     return cachedClient;
   }
 
-  // Verify a token via userinfo (avoids local JWKS handling); callers cache it.
+  // Verify a token via the OIDC userinfo endpoint; callers cache it.
   async function userinfo(bearer: string): Promise<{ sub: string; email?: string } | null> {
-    const res = await fetch(`${cfg.endpoint}/oidc/me`, { headers: { Authorization: `Bearer ${bearer}` } });
-    if (!res.ok) return null;
-    return (await res.json()) as { sub: string; email?: string };
+    try {
+      const client = await oidcClient();
+      return (await client.userinfo(bearer)) as { sub: string; email?: string };
+    } catch {
+      return null;
+    }
   }
 
   let provisioning: Provisioning | undefined;
@@ -43,16 +46,10 @@ export function createLogtoProvider(cfg: ProviderConfig): IdentityProvider {
     const token = async (): Promise<string> => {
       const now = Date.now();
       if (mgmtToken && mgmtToken.expiresAt - 30_000 > now) return mgmtToken.value;
-      const body = new URLSearchParams({ grant_type: 'client_credentials', resource: m2m.managementResource, scope: 'all' });
-      const basic = Buffer.from(`${m2m.appId}:${m2m.appSecret}`).toString('base64');
-      const res = await fetch(`${cfg.endpoint}/oidc/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${basic}` },
-        body,
-      });
-      if (!res.ok) throw new Error(`Logto token request failed: ${res.status} ${await res.text()}`);
-      const json = (await res.json()) as { access_token: string; expires_in: number };
-      mgmtToken = { value: json.access_token, expiresAt: now + json.expires_in * 1000 };
+      const issuer = await Issuer.discover(`${cfg.endpoint}/oidc`);
+      const client = new issuer.Client({ client_id: m2m.appId, client_secret: m2m.appSecret });
+      const json = await client.grant({ grant_type: 'client_credentials', resource: m2m.managementResource, scope: 'all' });
+      mgmtToken = { value: json.access_token!, expiresAt: now + (json.expires_in ?? 3600) * 1000 };
       return mgmtToken.value;
     };
     const mgmt = async (path: string, init: RequestInit): Promise<Response> => {
