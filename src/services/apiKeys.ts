@@ -4,10 +4,10 @@ import { col } from '../db';
 import { audit } from '../audit';
 import { ApiKey } from '../types';
 import { NotFoundError } from './errors';
+import { genSecret } from './common';
 
 // Secret format: "dvk_" + 32 random bytes (base64url). Only the sha256 of the
 // whole string is stored; the prefix + last-4 are kept for the masked display.
-const SECRET_BYTES = 32;
 const PREFIX_LEN = 12; // "dvk_" + 8 chars
 
 export function hashSecret(secret: string): string {
@@ -19,7 +19,7 @@ export function maskedDisplay(key: Pick<ApiKey, 'prefix' | 'last4'>): string {
 }
 
 function generateSecret(): string {
-  return 'dvk_' + crypto.randomBytes(SECRET_BYTES).toString('base64url');
+  return `dvk_${genSecret()}`;
 }
 
 // Create a key for `ownerId`. Returns the stored doc plus the one-time plaintext

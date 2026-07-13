@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { userCached } from '../decide';
 import { getSessionId, sessionIsRevoked, touchSession } from '../sessions';
 import { User } from '../types';
+import { isNavigation } from '../gateway-logic';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -36,8 +37,7 @@ export async function loadUser(req: Request, _res: Response, next: NextFunction)
 }
 
 function wantsHtml(req: Request): boolean {
-  if (req.get('sec-fetch-mode') === 'navigate') return true;
-  return (req.get('accept') || '').includes('text/html');
+  return isNavigation(req.get('sec-fetch-mode'), req.get('accept'));
 }
 
 export function requireSession(req: Request, res: Response, next: NextFunction): void {

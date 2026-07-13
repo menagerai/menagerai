@@ -1,6 +1,5 @@
 import express, { Response, Router } from 'express';
 import multer from 'multer';
-import * as XLSX from 'xlsx';
 import { ObjectId } from 'mongodb';
 import { flash } from '../flash';
 import { col } from '../db';
@@ -9,7 +8,7 @@ import { requireAdmin } from '../middleware/auth';
 import { config } from '../config';
 import { managementConfigured } from '../idp/config';
 import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS } from '../usage';
-import { parseRoster } from '../admin-logic';
+import { decodeCsvBuffer, parseCsvRows, parseRoster } from '../admin-logic';
 import { ApiError, NotFoundError } from '../services/errors';
 import { isSuperadmin, PROTECTED_ROLE } from '../services/common';
 import * as usersSvc from '../services/users';
@@ -20,7 +19,7 @@ import { createApiKey, listApiKeys, maskedDisplay, revokeApiKey } from '../servi
 import { buildOpenApiDocument } from '../api/openapi';
 import { swaggerAssetsPath, swaggerHtml } from '../api/docs';
 
-// Batch user import accepts a small spreadsheet in memory; cap the size and the
+// Batch user import accepts a small CSV in memory; cap the size and the
 // row count so a stray upload can't exhaust memory or hammer Logto.
 const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 const IMPORT_MAX_ROWS = 5000;
@@ -131,7 +130,7 @@ adminRouter.post('/users', async (req, res) => {
   }
 });
 
-// --- Batch user import (Excel/CSV). Defined BEFORE /users/:id so the :id route
+// --- Batch user import (CSV). Defined BEFORE /users/:id so the :id route
 // doesn't capture the literal "import" segment. ---
 adminRouter.get('/users/import', async (req, res) => {
   // Only EXTERNAL roles (key starts with ext_) are assignable in bulk — a guard so
@@ -147,14 +146,11 @@ adminRouter.post('/users/import', importUpload.single('file'), async (req, res) 
   const autoRule = req.body.auto_rule === 'on';
   const role = String(req.body.role || '').trim();
 
-  // First worksheet → 2-D cell array → { email, name } roster. (File parsing stays
+  // CSV → 2-D cell array → { email, name } roster. (File parsing stays
   // in the UI; the API import endpoint accepts the roster as JSON directly.)
   let roster: { email: string; name: string }[];
   try {
-    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = sheet ? (XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' }) as unknown[][]) : [];
-    roster = parseRoster(rows);
+    roster = parseRoster(parseCsvRows(decodeCsvBuffer(req.file.buffer)));
   } catch (err) {
     console.error('roster parse failed', err);
     return flash(res, '/admin/users/import', 'flash.importParseFailed');

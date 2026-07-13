@@ -202,7 +202,7 @@ export interface ImportCounts {
   notAllowed: number; duplicate: number; rulesCreated: number; logtoFailed: number;
 }
 
-// Provision users from an already-parsed roster (the UI parses the spreadsheet;
+// Provision users from an already-parsed roster (the UI parses the CSV;
 // the API accepts the rows as JSON). Auto-creates exact email-allow rules when
 // `autoRule` is set. Non-fatal per-row failures are tallied, never thrown.
 export async function importRoster(

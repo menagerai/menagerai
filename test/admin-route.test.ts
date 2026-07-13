@@ -3,7 +3,6 @@ import express from 'express';
 import path from 'path';
 import { ObjectId } from 'mongodb';
 import request from 'supertest';
-import * as XLSX from 'xlsx';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
@@ -411,11 +410,8 @@ describe('POST /admin/users/import — batch user import', () => {
     app.use('/admin', adminRouter);
     return app;
   }
-  function xlsxBuf(rows: (string | number)[][]): Buffer {
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  function csvBuf(rows: (string | number)[][]): Buffer {
+    return Buffer.from(rows.map((row) => row.map((cell) => String(cell)).join(',')).join('\n'), 'utf8');
   }
   const HEADER: (string | number)[] = ['Email', 'Name'];
 
@@ -425,27 +421,27 @@ describe('POST /admin/users/import — batch user import', () => {
 
   it('(a) out-of-pattern email + auto_rule on → creates an exact rule then the user with the ext_ role', async () => {
     h.roleFindOne.mockResolvedValue({ key: 'ext_viewer', name: 'External Viewer' });
-    const buf = xlsxBuf([HEADER, ['ext1@outside.com', 'Ext One']]);
+    const buf = csvBuf([HEADER, ['ext1@outside.com', 'Ext One']]);
     const res = await request(renderApp(admin))
       .post('/admin/users/import')
       .field('auto_rule', 'on')
       .field('role', 'ext_viewer')
-      .attach('file', buf, 'roster.xlsx');
+      .attach('file', buf, 'roster.csv');
     expect(res.status).toBe(200);
     expect(h.ruleInsertOne).toHaveBeenCalledWith(expect.objectContaining({
       type: 'exact', pattern: 'ext1@outside.com', status: 'active',
       // provenance: "bulk import · <file> · <date>"
-      description: expect.stringContaining('bulk import · roster.xlsx · '),
+      description: expect.stringContaining('bulk import · roster.csv · '),
     }));
     expect(h.userInsertOne).toHaveBeenCalledWith(expect.objectContaining({ email: 'ext1@outside.com', source: 'import', roles: ['ext_viewer'] }));
   });
 
   it('(b) auto_rule off → out-of-pattern row is skipped (no rule, no user)', async () => {
-    const buf = xlsxBuf([HEADER, ['ext2@outside.com', 'Ext Two']]);
+    const buf = csvBuf([HEADER, ['ext2@outside.com', 'Ext Two']]);
     const res = await request(renderApp(admin))
       .post('/admin/users/import')
       .field('role', '')
-      .attach('file', buf, 'roster.xlsx');
+      .attach('file', buf, 'roster.csv');
     expect(res.status).toBe(200);
     expect(h.ruleInsertOne).not.toHaveBeenCalled();
     expect(h.userInsertOne).not.toHaveBeenCalled();
@@ -453,23 +449,23 @@ describe('POST /admin/users/import — batch user import', () => {
 
   it('(c) existing email is skipped', async () => {
     h.findOne.mockResolvedValue({ _id: new ObjectId(), email: 'dupe@outside.com' });
-    const buf = xlsxBuf([HEADER, ['dupe@outside.com', 'Dupe']]);
+    const buf = csvBuf([HEADER, ['dupe@outside.com', 'Dupe']]);
     const res = await request(renderApp(admin))
       .post('/admin/users/import')
       .field('auto_rule', 'on')
-      .attach('file', buf, 'roster.xlsx');
+      .attach('file', buf, 'roster.csv');
     expect(res.status).toBe(200);
     expect(h.userInsertOne).not.toHaveBeenCalled();
   });
 
   it('(e) SECURITY: a non-ext_ role in the body is rejected — nothing is created', async () => {
     h.roleFindOne.mockResolvedValue({ key: 'system_admin', name: 'Admin' }); // exists, but not ext_
-    const buf = xlsxBuf([HEADER, ['ext3@outside.com', 'Ext Three']]);
+    const buf = csvBuf([HEADER, ['ext3@outside.com', 'Ext Three']]);
     const res = await request(renderApp(admin))
       .post('/admin/users/import')
       .field('auto_rule', 'on')
       .field('role', 'system_admin')
-      .attach('file', buf, 'roster.xlsx');
+      .attach('file', buf, 'roster.csv');
     expect(res.status).toBe(302); // flash redirect, not a render
     expect(res.headers.location).toContain('/admin/users/import');
     expect(h.userInsertOne).not.toHaveBeenCalled();

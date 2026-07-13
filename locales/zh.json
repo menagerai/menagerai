@@ -108,8 +108,8 @@
   "usersImport": {
     "importBtn": "批量导入",
     "title": "批量导入用户",
-    "intro": "上传表格（.xlsx / .xls / .csv），第一列为邮箱，第二列为姓名。已存在的用户将被跳过。",
-    "fileLabel": "Excel / CSV 文件",
+    "intro": "上传 CSV 文件，第一列为邮箱，第二列为姓名。已存在的用户将被跳过。",
+    "fileLabel": "CSV 文件",
     "fileTip": "第一列邮箱，第二列姓名。表头行（如“Email”“Name”）会被自动识别并跳过。",
     "autoRuleLabel": "为不符合当前允许规则的邮箱自动创建精确放行规则",
     "autoRuleTip": "对未被任何启用规则匹配的邮箱，新增一条精确放行规则，使其可被创建并登录。关闭时，不匹配的邮箱将被跳过。",
