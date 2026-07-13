@@ -232,6 +232,16 @@
             color:#92400e; font-size:13px; text-align:center; padding:6px 14px; }
     .demo-banner .demo-countdown { font-variant-numeric:tabular-nums; }
   </style>
+  <% if (typeof gaId !== 'undefined' && gaId) { %>
+    <!-- Google tag (gtag.js) — injected only when GA_MEASUREMENT_ID is set -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<%= gaId %>"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '<%= gaId %>');
+    </script>
+  <% } %>
 </head>
 <% var _hasSidebar = (typeof isAdmin !== 'undefined' && isAdmin); %>
 <% var _ap = (typeof activePath !== 'undefined' && activePath) ? activePath : ''; %>

@@ -45,6 +45,9 @@ export function buildPublicApp(opts: { mountGateway: boolean; startup: StartupCh
   // `brand` for direct use in views.
   app.use((_req, res, next) => {
     res.locals.brand = config.brandName;
+    // Optional analytics: '' unless GA_MEASUREMENT_ID is set. Exposed to every
+    // rendered page; head.ejs injects the gtag snippet only when truthy.
+    res.locals.gaId = config.gaMeasurementId;
     const t = res.locals.t as (key: string, vars?: Record<string, string | number>) => string;
     res.locals.t = (key: string, vars?: Record<string, string | number>) =>
       t(key, { brand: config.brandName, ...(vars || {}) });

@@ -62,6 +62,7 @@ The internal Traefik serves the whole stack from its baked-in config; Coolify ju
 - Requires the default `server-all` entrypoint (the reset timer lives in that one process). The split `server-web`/`server-gateway` topology is not for demo mode.
 - Visitors signed in as **Ada** have full admin power (create users, regenerate secrets, delete personas). That's intentional — the reset bounds any damage to `DEMO_LIMIT_MINS`, and the seed's deterministic secrets self-heal on reset.
 - Changing personas/apps: edit `src/demo/seed.ts` (the seed) — the apps and the access matrix live there.
+- Analytics (optional): set `GA_MEASUREMENT_ID` to a Google Analytics measurement ID (`G-XXXXXXXXXX`) on the portal resource to inject the gtag snippet. It's a general portal feature — injected whenever the var is set — so the open-source app ships no analytics by default. (Set the same var on the `www` resource to track the landing site too.)
 
 ## Deploying a mock app standalone (advanced)
 

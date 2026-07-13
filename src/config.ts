@@ -44,6 +44,11 @@ export const config = {
   // from an env var so a white-label operator *can* override it, but it is left
   // out of .env.example on purpose: unset, it stays "Menagerai".
   brandName: opt('BRAND_NAME', 'Menagerai'),
+  // Optional Google Analytics measurement ID (e.g. G-XXXXXXXXXX). When set, the
+  // gtag snippet is injected into every rendered page; unset (the default), no
+  // analytics ship — so a plain open-source deploy stays analytics-free unless the
+  // operator opts in. Sanitized to the GA ID charset (safe to interpolate).
+  gaMeasurementId: opt('GA_MEASUREMENT_ID').match(/^[A-Za-z0-9-]+$/) ? opt('GA_MEASUREMENT_ID') : '',
   port: int('PORT', 3000),
   // /gateway/verify is also served on this dedicated internal-only port. No FQDN
   // routes to it (Coolify publishes only `port`), so it is reachable solely from

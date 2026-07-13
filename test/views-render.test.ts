@@ -43,8 +43,8 @@ const cases: [string, Record<string, unknown>][] = [
       personas: [{ key: 'bo', email: 'bo@demo.menagerai.dev', name: 'Bo (Analyst)', roles: ['analyst'], overrides: [] }],
     },
   ],
-  // Armed demo banner (countdown branch) rendered on the launcher.
-  ['launcher.ejs', { user, isAdmin: false, apps: [], demoMode: true, demoResetAt: 1893456000000 }],
+  // Armed demo banner (countdown branch) + GA tag injection on the launcher.
+  ['launcher.ejs', { user, isAdmin: false, apps: [], demoMode: true, demoResetAt: 1893456000000, gaId: 'G-TEST12345' }],
   ['no-access.ejs', { user: null, app: 'demo', reason: null }],
   ['no-access.ejs', { user, app: null, reason: 'not_provisioned' }],
   ['admin/users.ejs', { user, isAdmin: true, users: [], q: '', managementConfigured: false, msg: null }],
