@@ -75,7 +75,8 @@ describe('GET /login (persona picker)', () => {
     expect(res.text).toContain('ada@demo.menagerai.dev');
     expect(res.text).toContain('bo@demo.menagerai.dev');
     expect(res.text).toContain('/demo-personas/ada.png');
-    expect(res.text).toContain('>Ada</button>');
+    expect(res.text).toContain('>Sign in as Ada</button>');
+    expect(res.text).not.toContain('>Sign in as Ada (Superadmin)</button>');
   });
 });
 

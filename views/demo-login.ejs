@@ -17,7 +17,7 @@
         <form method="post" action="/demo/login">
           <input type="hidden" name="email" value="<%= p.email %>" />
           <input type="hidden" name="next" value="<%= next %>" />
-          <button type="submit" class="btn primary"><%= p.shortName %></button>
+          <button type="submit" class="btn primary"><%= t('demo.signInAs', { name: p.shortName }) %></button>
         </form>
       </div>
     <% }) %>
