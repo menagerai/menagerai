@@ -14,6 +14,8 @@ Vibe coding lets teams ship AI-generated internal tools in hours. At enterprise 
 
 Menagerai adds post-deployment governance without forcing every app to rebuild authentication. Put existing apps behind its ForwardAuth gateway, connect your OIDC identity provider, and manage app-level access from one portal. Employees sign in once; IT gets a centralized app inventory, default-deny authorization, auditable access management, and adoption data for every app — on infrastructure the organization controls.
 
+<p align="center"><a href="https://demo.menager.ai">Try the live demo</a></p>
+
 ---
 
 ## Why enterprise vibe coding needs governance
