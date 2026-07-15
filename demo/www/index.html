@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Menagerai — tame your wild, vibe-coded apps</title>
-  <meta name="description" content="Menagerai is a self-hosted control plane that puts one SSO login, per-app access control, and usage analytics in front of the internal apps your team ships — without rebuilding their auth." />
+  <meta name="description" content="Menagerai is a self-hosted control plane for the internal apps your team ships: one SSO login, per-app access control, and usage analytics, all in one place." />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="favicon.png" />
   <style>
@@ -85,9 +85,6 @@
     .step h3 { margin:8px 0 6px; font-size:16px; }
     .step p { margin:0; color:var(--card-muted); font-size:14px; }
 
-    .notline { margin-top:34px; padding:18px 20px; border:1px dashed var(--card-line); border-radius:12px; color:var(--card-muted); font-size:14.5px; }
-    .notline strong { color:var(--card-fg); }
-
     /* Agent-ready band (dark, between the white sections) */
     .agents { background:linear-gradient(180deg,#0f1730,#0b1020); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
     .agents .container { padding:58px 22px; text-align:center; }
@@ -125,7 +122,7 @@
       <img class="logo" src="logo.png" alt="Menagerai logo" />
       <span class="eyebrow">Open source · AGPL-3.0 · Self-hosted</span>
       <h1>Tame your wild, vibe-coded apps</h1>
-      <p class="lede">Menagerai is a self-hosted control plane that puts <strong>one SSO login</strong>, <strong>per-app access control</strong>, and <strong>usage analytics</strong> in front of the internal apps your team ships — without rebuilding their auth.</p>
+      <p class="lede">Menagerai is a self-hosted control plane for the internal apps your team ships: <strong>one SSO login</strong>, <strong>per-app access control</strong>, and <strong>usage analytics</strong>, all in one place.</p>
       <div class="cta">
         <a class="btn primary" href="https://demo.menager.ai" target="_blank" rel="noopener">Try the live demo →</a>
         <a class="btn ghost" href="https://github.com/menagerai/menagerai" target="_blank" rel="noopener">View on GitHub</a>
@@ -192,7 +189,6 @@
           <p>A ForwardAuth gateway authorizes every request and forwards trusted identity headers. Simple apps need no login of their own.</p>
         </div>
       </div>
-      <div class="notline"><strong>Not</strong> an identity provider, <strong>not</strong> a PaaS, <strong>not</strong> multi-tenant. It governs the apps you deploy on the infrastructure you already run.</div>
     </div>
   </section>
 
