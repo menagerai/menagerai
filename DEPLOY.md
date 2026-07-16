@@ -51,7 +51,8 @@ Order: **Logto setup → deploy Menagerai → bootstrap (seed) → gateway middl
    # GATEWAY_PORT=3001          # internal-only verify port (default 3001); the
                                 #   Dockerfile already sets this — no FQDN routes to it.
    ```
-4. Deploy. Health check is `GET /healthz` (port 3000). A fresh install can set `GATEWAY_PUBLIC=false` from the start; an existing deployment migrates with no downtime per §4 "Migrate an existing deployment".
+4. **Network alias** — set now, at create time. The gateway middleware (§4) reaches this deployment over the internal Docker network by a **stable alias**, `menagerai`, and that alias has to exist before the middleware can resolve it. In the application's **General** settings page, give the service the network alias `menagerai` (any name works as long as §4's `address` uses the same one), leave `container_name` **unset** — a pinned container name forces stop-then-start and breaks zero-downtime redeploys — and enable Coolify's zero-downtime deploy. Confirm the alias Coolify actually exposes before writing §4's config.
+5. Deploy. Health check is `GET /healthz` (port 3000). A fresh install can set `GATEWAY_PUBLIC=false` from the start; an existing deployment migrates with no downtime per §4 "Migrate an existing deployment".
 
 > **Data store.** The default is SQLite — a single file at `SQLITE_PATH`. Mount a persistent volume at its directory (e.g. `/app/data`) so it survives redeploys; the file and its parent dir are created on first run. To use MongoDB instead, set `MONGODB_CONN_STR` (and optionally `MONGODB_DB`); `SQLITE_PATH` is then ignored. No replica set is required for either backend.
 
@@ -89,7 +90,7 @@ http:
           - X-Menagerai-Proxy-Secret
 ```
 
-`address` must use a **stable internal service/network alias** (here `menagerai`), **not** a pinned per-deploy container name — a fixed `container_name` forces stop-then-start and breaks zero-downtime, dropping ForwardAuth (→ 5xx on every gated app) mid-redeploy. Drop the fixed name and enable Coolify's zero-downtime deploy. Confirm the exact alias Coolify exposes for the service.
+`address` must use a **stable internal service/network alias** (here `menagerai`), **not** a pinned per-deploy container name — a fixed `container_name` forces stop-then-start and breaks zero-downtime, dropping ForwardAuth (→ 5xx on every gated app) mid-redeploy. Drop the fixed name and enable Coolify's zero-downtime deploy. This is the alias you set when creating the application (§2 step 4) — confirm the exact alias Coolify exposes for the service.
 
 **Port `3001` is the dedicated internal-only verify port.** `/gateway/verify` returns the target app's `X-Menagerai-Proxy-Secret` as a response header on allow, so it must never be reachable from the internet. The portal serves verify on `3001`, which **no FQDN/domain routes to** (Coolify publishes only the app port, `3000`) — so do **not** add a domain or port mapping for `3001`; leaving it unpublished is what keeps it internal. With `GATEWAY_PUBLIC=false`, the public app on `3000` stops serving verify entirely, so the only way to reach it is from inside the Docker network — exactly this middleware.
 
