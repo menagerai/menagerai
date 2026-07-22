@@ -2,7 +2,7 @@
   "name": "menagerai",
   "version": "0.1.0",
   "description": "Menagerai — one login, per-app access control, and usage analytics for the apps you deploy",
-  "license": "AGPL-3.0-only",
+  "license": "LGPL-3.0-only",
   "private": true,
   "main": "dist/server-all.js",
   "scripts": {

@@ -31,7 +31,7 @@ Thanks for your interest in contributing. Menagerai is an open-source access-con
 
 ## Licensing of contributions
 
-Menagerai is licensed under **AGPL-3.0** (see [LICENSE](./LICENSE)). By submitting a contribution, you agree that it is licensed under the same terms and that you have the right to contribute it.
+Menagerai is licensed under **LGPL-3.0-only** (see [LICENSE](./LICENSE)). By submitting a contribution, you agree that it is licensed under the same terms and that you have the right to contribute it.
 
 ## Code of Conduct
 

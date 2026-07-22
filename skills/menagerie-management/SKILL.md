@@ -3,7 +3,7 @@ name: menagerie-management
 description: "Use when an agent or operator needs to manage a Menagerai deployment programmatically: users, roles, app registrations, app grants, per-user overrides, email allow rules, proxy secrets, or audit logs through the admin API."
 version: 1.0.0
 author: Menagerai contributors
-license: AGPL-3.0-only
+license: LGPL-3.0-only
 platforms: [linux, macos, windows]
 prerequisites:
   env_vars: [MENAGERAI_ADMIN_API_KEY, MENAGERAI_BASE_URL]
