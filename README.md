@@ -6,7 +6,7 @@
 
 **A self-hosted control plane for vibe-coded internal apps: one SSO portal, per-app RBAC, an app catalog, audit logs, and usage analytics.**
 
-[![CI](https://github.com/menagerai/menagerai/actions/workflows/ci.yml/badge.svg)](https://github.com/menagerai/menagerai/actions/workflows/ci.yml) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
+[![CI](https://github.com/menagerai/menagerai/actions/workflows/ci.yml/badge.svg)](https://github.com/menagerai/menagerai/actions/workflows/ci.yml) [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](./LICENSE)
 
 </div>
 
@@ -176,4 +176,4 @@ Contributions are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and our [
 
 ## License
 
-Menagerai is licensed under the **GNU Affero General Public License v3.0** — see [LICENSE](./LICENSE). The AGPL keeps the project and its network-hosted derivatives open. For commercial licensing enquiries, open a discussion.
+Menagerai is licensed under the **GNU Lesser General Public License v3.0 (LGPL-3.0-only)** — see [LICENSE](./LICENSE). You may integrate or link Menagerai with a larger application without requiring that larger application to adopt the LGPL. If you distribute a modified version of Menagerai, the LGPL requires the Menagerai modifications and corresponding source to remain available under the LGPL; separate components may use other licenses, subject to the license terms.
