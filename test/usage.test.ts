@@ -12,7 +12,7 @@ vi.mock('../src/db', () => ({
 }));
 
 import {
-  buildHeatmap, dailyCountsForUser, recordUsage, topAppsForUser, topUsersForApp, usageDay,
+  buildHeatmap, dailyCountsForUser, heatmapSinceDay, recordUsage, topAppsForUser, topUsersForApp, usageDay,
 } from '../src/usage';
 
 const cursor = (rows: unknown[]) => ({ toArray: async () => rows });
@@ -36,6 +36,24 @@ describe('usageDay — business-day bucketing', () => {
   });
   it('zero-pads month and day', () => {
     expect(usageDay(Date.UTC(2026, 0, 5, 12, 0, 0), 'UTC')).toBe('2026-01-05');
+  });
+});
+
+describe('heatmapSinceDay — trailing window cutoff', () => {
+  const now = Date.UTC(2026, 5, 23, 12, 0, 0); // 2026-06-23 in Asia/Shanghai
+
+  it('spans exactly `days` days INCLUDING today (n days, not n+1)', () => {
+    // 30d ending 2026-06-23 → earliest day is 2026-05-25 (today + 29 prior = 30).
+    expect(heatmapSinceDay(now, 30)).toBe('2026-05-25');
+    // 1d → today only.
+    expect(heatmapSinceDay(now, 1)).toBe('2026-06-23');
+  });
+
+  it('matches the leftmost cell buildHeatmap draws for the same window', () => {
+    const days = 7;
+    const hm = buildHeatmap(new Map(), now, days, 'Asia/Shanghai');
+    const firstDay = hm.weeks.flat().find((c) => c.day)?.day;
+    expect(heatmapSinceDay(now, days)).toBe(firstDay); // score cutoff == grid start
   });
 });
 

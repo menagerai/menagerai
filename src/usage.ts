@@ -193,8 +193,13 @@ export function dailyCountsForApp(appKey: string, sinceDay: string): Promise<Map
   return dailyCounts({ app_key: appKey }, sinceDay);
 }
 
+// Cutoff day for a trailing window of exactly `days` days INCLUDING today. The
+// window is [cutoff, today] with an inclusive `day >= cutoff` match, so the
+// cutoff is (days-1) back: today plus the previous days-1 = `days` days total —
+// the same span buildHeatmap draws. (Using `days` here would reach one day
+// older than the grid's leftmost cell, i.e. 31 days for a "30d" label.)
 export function heatmapSinceDay(nowMs: number, days: number): string {
-  return usageDay(nowMs - days * 86_400_000);
+  return usageDay(nowMs - (days - 1) * 86_400_000);
 }
 
 // ---- Heatmap builder (pure) ----
