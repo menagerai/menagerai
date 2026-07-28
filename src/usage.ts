@@ -207,19 +207,34 @@ export function heatmapSinceDay(nowMs: number, days: number): string {
 export interface HeatCell {
   day: string | null; // null = padding cell to align the grid
   count: number;
-  level: 0 | 1 | 2 | 3 | 4;
+  intensity: number; // 0-100 along the shading ramp; 0 = no activity
 }
 export interface Heatmap {
   weeks: HeatCell[][]; // each inner array is one week column, Mon..Sun
-  max: number;
+  max: number; // busiest day in this heatmap (not necessarily the shading anchor)
 }
 
-function levelFor(count: number): 0 | 1 | 2 | 3 | 4 {
+// Floor under the shading scale. Without it a dead window (peak 1-2) would paint
+// trivial activity at full intensity; with it, quiet windows stay visibly quiet
+// and the scale only stretches once the data outgrows this.
+const MIN_SCALE_MAX = 6;
+
+// Position of a day on the shading ramp, 0-100 (0 = no activity, 100 = the
+// busiest day the scale is anchored to). The view mixes this percentage between
+// two greens, so shading is continuous rather than a handful of buckets — enough
+// resolution that neighbouring counts stay tellable apart.
+//
+// Anchoring to `scaleMax` instead of fixed thresholds lets a heatmap peaking at
+// 40 and one peaking at 6 both use the whole ramp. The log keeps the low end
+// legible: normalising linearly against a heavy tail would crush 1-5 — where
+// most days live — into near-identical shades. count 1 sits at the ramp's light
+// end, count === scaleMax at its dark end:
+//   scaleMax 40 -> 1:0  2:19  3:30  5:44  10:62  20:81  40:100
+//   scaleMax  6 -> 1:0  2:39  3:61  4:77   5:90         6:100
+function intensityFor(count: number, scaleMax: number): number {
   if (count <= 0) return 0;
-  if (count === 1) return 1;
-  if (count <= 3) return 2;
-  if (count <= 5) return 3;
-  return 4;
+  const t = Math.log(count) / Math.log(scaleMax); // scaleMax >= MIN_SCALE_MAX, so log > 0
+  return Math.max(0, Math.min(100, Math.round(100 * t)));
 }
 
 // The weekday of a 'YYYY-MM-DD' label as a Monday-based index (0=Mon..6=Sun) —
@@ -229,12 +244,18 @@ function weekdayOf(day: string): number {
 }
 
 // Build a GitHub-style contribution grid for the trailing `days` calendar days.
+//
+// `scaleMax` anchors the deepest shade. Pass it to shade a group of heatmaps
+// against a shared peak so they stay comparable side by side; omit it and each
+// heatmap anchors to its own busiest day. Either way it is floored at
+// MIN_SCALE_MAX.
 export function buildHeatmap(
   countsByDay: Map<string, number>,
   nowMs: number,
   days: number,
-  timeZone: string = config.timezone,
+  opts: { scaleMax?: number; timeZone?: string } = {},
 ): Heatmap {
+  const timeZone = opts.timeZone ?? config.timezone;
   // Ordered, de-duplicated day labels (dedupe guards DST-transition wobble from
   // the fixed 24h step).
   const labels: string[] = [];
@@ -247,15 +268,15 @@ export function buildHeatmap(
     }
   }
 
+  // Two passes: the shading anchor has to be known before any cell can be shaded.
+  const counts = labels.map((d) => countsByDay.get(d) || 0);
+  const max = counts.reduce((a, b) => Math.max(a, b), 0);
+  const scale = Math.max(opts.scaleMax ?? max, MIN_SCALE_MAX);
+
   const cells: HeatCell[] = [];
-  for (let i = 0; i < weekdayOf(labels[0]); i++) cells.push({ day: null, count: 0, level: 0 });
-  let max = 0;
-  for (const d of labels) {
-    const count = countsByDay.get(d) || 0;
-    if (count > max) max = count;
-    cells.push({ day: d, count, level: levelFor(count) });
-  }
-  while (cells.length % 7 !== 0) cells.push({ day: null, count: 0, level: 0 });
+  for (let i = 0; i < weekdayOf(labels[0]); i++) cells.push({ day: null, count: 0, intensity: 0 });
+  labels.forEach((d, i) => cells.push({ day: d, count: counts[i], intensity: intensityFor(counts[i], scale) }));
+  while (cells.length % 7 !== 0) cells.push({ day: null, count: 0, intensity: 0 });
 
   const weeks: HeatCell[][] = [];
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));

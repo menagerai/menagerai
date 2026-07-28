@@ -89,16 +89,26 @@ adminRouter.get('/dashboard', async (req, res) => {
     m.forEach((v) => { n += v; });
     return n;
   };
-  const [appCards, userCards] = await Promise.all([
-    Promise.all(topApps.map(async (a) => {
-      const counts = await dailyCountsForApp(a.app_key, heatSince);
-      return { ...a, scoreFull: sumCounts(counts), heatmap: buildHeatmap(counts, now, config.usageHeatmapDays) };
-    })),
-    Promise.all(topUsers.map(async (u) => {
-      const counts = await dailyCountsForUser(u.user_id, heatSince);
-      return { ...u, scoreFull: sumCounts(counts), heatmap: buildHeatmap(counts, now, config.usageHeatmapDays) };
-    })),
+  const maxCount = (ms: Map<string, number>[]): number => {
+    let n = 0;
+    ms.forEach((m) => m.forEach((v) => { if (v > n) n = v; }));
+    return n;
+  };
+  const [appCounts, userCounts] = await Promise.all([
+    Promise.all(topApps.map((a) => dailyCountsForApp(a.app_key, heatSince))),
+    Promise.all(topUsers.map((u) => dailyCountsForUser(u.user_id, heatSince))),
   ]);
+  // Shading anchors to the busiest day in the section, so cards stay comparable
+  // against each other rather than each maxing out its own scale. The two
+  // sections anchor separately: app cards count distinct users per day, user
+  // cards count distinct apps per day — different units, usually very different
+  // ranges, and one shared scale would wash out whichever section runs smaller.
+  const appScale = maxCount(appCounts);
+  const userScale = maxCount(userCounts);
+  const build = (counts: Map<string, number>, scaleMax: number) =>
+    buildHeatmap(counts, now, config.usageHeatmapDays, { scaleMax });
+  const appCards = topApps.map((a, i) => ({ ...a, scoreFull: sumCounts(appCounts[i]), heatmap: build(appCounts[i], appScale) }));
+  const userCards = topUsers.map((u, i) => ({ ...u, scoreFull: sumCounts(userCounts[i]), heatmap: build(userCounts[i], userScale) }));
   res.render('admin/dashboard', {
     user: req.user, isAdmin: true,
     appCards, userCards,

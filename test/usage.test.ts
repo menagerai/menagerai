@@ -51,7 +51,7 @@ describe('heatmapSinceDay — trailing window cutoff', () => {
 
   it('matches the leftmost cell buildHeatmap draws for the same window', () => {
     const days = 7;
-    const hm = buildHeatmap(new Map(), now, days, 'Asia/Shanghai');
+    const hm = buildHeatmap(new Map(), now, days, { timeZone: 'Asia/Shanghai' });
     const firstDay = hm.weeks.flat().find((c) => c.day)?.day;
     expect(heatmapSinceDay(now, days)).toBe(firstDay); // score cutoff == grid start
   });
@@ -62,20 +62,51 @@ describe('buildHeatmap — GitHub-style grid', () => {
 
   it('lays out aligned week columns over the trailing window', () => {
     const counts = new Map([['2026-06-20', 3], ['2026-06-23', 7]]);
-    const hm = buildHeatmap(counts, now, 7, 'Asia/Shanghai');
+    const hm = buildHeatmap(counts, now, 7, { timeZone: 'Asia/Shanghai' });
     const flat = hm.weeks.flat();
     const dayCells = flat.filter((c) => c.day);
 
     expect(dayCells.length).toBe(7); // no DST in Shanghai → exactly 7 days
     expect(hm.weeks.every((w) => w.length === 7)).toBe(true);
-    expect(dayCells.find((c) => c.day === '2026-06-20')).toMatchObject({ count: 3, level: 2 });
-    expect(dayCells.find((c) => c.day === '2026-06-23')).toMatchObject({ count: 7, level: 4 });
+    // Anchored to this map's own peak (7): log(3)/log(7) ≈ .56, and the peak pins to 100.
+    expect(dayCells.find((c) => c.day === '2026-06-20')).toMatchObject({ count: 3, intensity: 56 });
+    expect(dayCells.find((c) => c.day === '2026-06-23')).toMatchObject({ count: 7, intensity: 100 });
     expect(hm.max).toBe(7);
 
     // Leading padding aligns the first day to its weekday column (Mon-first grid).
     const wd = (new Date('2026-06-17T00:00:00Z').getUTCDay() + 6) % 7;
     expect(flat.slice(0, wd).every((c) => c.day === null)).toBe(true);
     expect(flat[wd].day).toBe('2026-06-17');
+  });
+
+  const intensityOf = (hm: ReturnType<typeof buildHeatmap>, day: string) =>
+    hm.weeks.flat().find((c) => c.day === day)?.intensity;
+
+  it('shades against a caller-supplied anchor so grouped heatmaps stay comparable', () => {
+    const counts = new Map([['2026-06-23', 7]]);
+    const own = buildHeatmap(counts, now, 7, { timeZone: 'Asia/Shanghai' });
+    const shared = buildHeatmap(counts, now, 7, { scaleMax: 40, timeZone: 'Asia/Shanghai' });
+
+    // Same day, same count — but against a section peaking at 40 it is mid-ramp,
+    // not the darkest cell. Without this every card would max out its own scale.
+    expect(intensityOf(own, '2026-06-23')).toBe(100);
+    expect(intensityOf(shared, '2026-06-23')).toBe(53);
+  });
+
+  it('floors the anchor so a quiet window does not read as a busy one', () => {
+    const hm = buildHeatmap(new Map([['2026-06-23', 2]]), now, 7, { timeZone: 'Asia/Shanghai' });
+    // Anchored to the MIN_SCALE_MAX floor of 6, not to its own peak of 2, so two
+    // apps in a dead window stay pale instead of painting as full intensity.
+    expect(hm.max).toBe(2);
+    expect(intensityOf(hm, '2026-06-23')).toBe(39);
+  });
+
+  it('puts a single event at the light end of the ramp, never at zero-shade', () => {
+    const hm = buildHeatmap(new Map([['2026-06-23', 1]]), now, 7, { scaleMax: 40, timeZone: 'Asia/Shanghai' });
+    expect(intensityOf(hm, '2026-06-23')).toBe(0); // .on class still distinguishes it from an inactive day
+    expect(intensityOf(hm, '2026-06-22')).toBe(0);
+    expect(hm.weeks.flat().find((c) => c.day === '2026-06-23')?.count).toBe(1);
+    expect(hm.weeks.flat().find((c) => c.day === '2026-06-22')?.count).toBe(0);
   });
 });
 

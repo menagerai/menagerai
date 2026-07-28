@@ -3,7 +3,8 @@
     <div class="hm-col">
       <% week.forEach(function(c){ %>
         <% if (c.day) { %>
-          <span class="hm-cell l<%= c.level %>" title="<%= c.day %>: <%= c.count %>"></span>
+          <%# --i is emitted raw (it is a number from intensityFor, not user input); only active days carry it. %>
+          <span class="hm-cell<%= c.count ? ' on' : '' %>"<%- c.count ? ` style="--i:${c.intensity}"` : '' %> title="<%= c.day %>: <%= c.count %>"></span>
         <% } else { %>
           <span class="hm-cell empty"></span>
         <% } %>
@@ -14,7 +15,7 @@
 <% if (typeof showLegend === 'undefined' || showLegend) { %>
 <div class="hm-legend muted">
   <%= t('heatmap.less') %>
-  <span class="hm-cell l0"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span>
+  <span class="hm-cell"></span><span class="hm-cell on" style="--i:0"></span><span class="hm-cell on" style="--i:33"></span><span class="hm-cell on" style="--i:66"></span><span class="hm-cell on" style="--i:100"></span>
   <%= t('heatmap.more', { days: heatmapDays }) %>
 </div>
 <% } %>

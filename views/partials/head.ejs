@@ -7,7 +7,8 @@
   <link rel="apple-touch-icon" href="/favicon.png" />
   <title><%= typeof title !== 'undefined' ? title : t('nav.brand') %></title>
   <style>
-    :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; --demo-banner-h:0px; }
+    :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; --demo-banner-h:0px;
+            --hm-zero:#ebedf0; --hm-lo:#9be9a8; --hm-hi:#216e39; }
     * { box-sizing: border-box; }
     body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg);
            /* Stop mobile Safari/Chrome from auto-inflating text by content size,
@@ -178,13 +179,13 @@
     /* GitHub-style activity heatmap: week columns of 7 day cells. */
     .heatmap { display:flex; gap:3px; justify-content:center; overflow-x:auto; padding:4px 0; }
     .hm-col { display:flex; flex-direction:column; gap:3px; }
-    .hm-cell { width:11px; height:11px; border-radius:2px; background:#ebedf0; display:inline-block; }
+    .hm-cell { width:11px; height:11px; border-radius:2px; background:var(--hm-zero); display:inline-block; }
     .hm-cell.empty { background:transparent; }
-    .hm-cell.l0 { background:#ebedf0; }
-    .hm-cell.l1 { background:#9be9a8; }
-    .hm-cell.l2 { background:#40c463; }
-    .hm-cell.l3 { background:#30a14e; }
-    .hm-cell.l4 { background:#216e39; }
+    /* Active days shade continuously along the green ramp: --i is the 0-100
+       position intensityFor() computed for that day. Mixing in oklab keeps the
+       ramp perceptually even, so adjacent counts stay tellable apart at 11px —
+       a handful of fixed buckets made every busy day the same shade. */
+    .hm-cell.on { background: color-mix(in oklab, var(--hm-hi) calc(var(--i, 0) * 1%), var(--hm-lo)); }
     .hm-legend { display:flex; gap:4px; align-items:center; justify-content:center; font-size:12px; margin-top:6px; }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
        the heatmap's real column count) is exactly the width one full-window
