@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+_Docs/
 
 # Build output
 dist/
