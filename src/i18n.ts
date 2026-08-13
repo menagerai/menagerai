@@ -6,7 +6,7 @@ import { NextFunction, Request, Response } from 'express';
 // /locales (nested keys by area). Templates call t('area.key'); missing keys
 // fall back to English, then to the key itself, so a partial translation never
 // breaks a page. Optional {placeholder} interpolation via the vars arg.
-export const SUPPORTED = ['en', 'zh'] as const;
+export const SUPPORTED = ['en', 'zh', 'hi'] as const;
 export type Lang = (typeof SUPPORTED)[number];
 export const DEFAULT_LANG: Lang = 'en';
 export const LANG_COOKIE = 'menagerai_lang';
