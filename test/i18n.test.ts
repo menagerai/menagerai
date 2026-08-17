@@ -25,6 +25,21 @@ describe('translate', () => {
     expect(translate('en', 'nav.brand', { brand: 'Menagerai' })).toBe('Menagerai App Portal');
     expect(translate('zh', 'nav.brand', { brand: 'Menagerai' })).toBe('Menagerai应用门户');
   });
+
+  it('keeps Hindi no-access, app security, and persona actions fully localized', () => {
+    const noAccess = `${translate('hi', 'noAccess.bodyPrefix')} Wiki. ${translate('hi', 'noAccess.bodySuffix')}`;
+    expect(noAccess).toBe(
+      'आप निम्न ऐप को एक्सेस नहीं कर सकते: Wiki. अगर आपको लगता है कि यह गलती है, तो किसी एडमिनिस्ट्रेटर से संपर्क करें।',
+    );
+    expect(translate('hi', 'noAccess.thisApp')).toBe('यह ऐप');
+    expect(translate('hi', 'app.basePath')).toBe('आधार पथ');
+    expect(translate('hi', 'app.authMode')).toBe('प्रमाणीकरण मोड');
+    expect(translate('hi', 'app.publicPathsLabel')).toBe(
+      'सार्वजनिक पथ (JSON) — अनाम, बिना प्रमाणीकरण',
+    );
+    expect(translate('hi', 'app.powerUsers')).toBe('सर्वाधिक सक्रिय उपयोगकर्ता');
+    expect(translate('hi', 'demo.signInAs', { name: 'Ada' })).toBe('Ada बनकर देखें');
+  });
 });
 
 describe('pickLang', () => {
