@@ -123,6 +123,11 @@ describe('view templates render without throwing', () => {
     expect(html.length).toBeGreaterThan(0);
   });
 
+  it.each(['en', 'zh', 'hi'])('marks %s pages with the active document language', async (lang) => {
+    const html = await render('launcher.ejs', { user, isAdmin: false, apps: [], lang });
+    expect(html).toContain(`<html lang="${lang}">`);
+  });
+
   it('the sidebar (admin panel) shows for admins on every page, not for others', async () => {
     // Admin on an admin page
     const adminPage = await render('admin/users.ejs', { user, isAdmin: true, users: [], q: '', managementConfigured: true, msg: null, activePath: '/admin/users' });

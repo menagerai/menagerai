@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="<%= typeof lang !== 'undefined' && lang ? lang : 'en' %>">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -312,10 +312,11 @@
     <div class="brand"><a href="/"><%= t('nav.brand') %></a></div>
     <nav>
       <details class="menu lang-menu">
-        <summary aria-label="Language"><%= _lang === 'zh' ? '中文' : 'EN' %><span class="caret">▾</span></summary>
+        <summary aria-label="Language"><%= _lang === 'zh' ? '中文' : _lang === 'hi' ? 'हिन्दी' : 'EN' %><span class="caret">▾</span></summary>
         <div class="menu-panel lang-panel">
           <a href="/set-lang?lang=en" class="<%= _lang === 'en' ? 'on' : '' %>">EN</a>
           <a href="/set-lang?lang=zh" class="<%= _lang === 'zh' ? 'on' : '' %>">中文</a>
+          <a href="/set-lang?lang=hi" class="<%= _lang === 'hi' ? 'on' : '' %>">हिन्दी</a>
         </div>
       </details>
       <% if (typeof user !== 'undefined' && user) { %>
