@@ -7,6 +7,13 @@ dist/
 build/
 *.tsbuildinfo
 
+# App onboarding runbooks are deployment-specific: each operator's fleet docs
+# describe their own private apps. Only the template and the worked example are
+# part of the project.
+apps/*.md
+!apps/_TEMPLATE.md
+!apps/demo.md
+
 # Environment / secrets
 .env
 .env.*
