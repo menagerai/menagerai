@@ -13,7 +13,7 @@
           <%# Every day is a 14px box (even empty ones), so the grid keeps stable
               whitespace around the 11px square and never goes wavy.
               --i/--ir/--ib are numbers from intensityFor (not user input). %>
-          <span class="hm-cell llm<%= c.count ? ' on' : '' %>" title="<%= c.day %>: <%= c.count %><%= c.spend != null ? ` · $${(c.spend).toFixed(4)} · ${c.tokens} tok` : '' %>">
+          <span class="hm-cell llm<%= c.count ? ' on' : '' %>" title="<%= c.day %>: <%= c.count %><%= c.spend != null ? ` · $${(c.spend).toFixed(4)} · ${Number(c.tokens).toLocaleString('en-US')} tok` : '' %>">
             <span class="sq"<%- c.count ? ` style="--i:${c.intensity}"` : '' %>></span>
             <% if (c.spend > 0) { %><span class="bar-v on" style="--ir:<%= c.spendIntensity %>;--lv:<%= c.spendIntensity / 100 %>"></span><% } %>
             <% if (c.tokens > 0) { %><span class="bar-h on" style="--ib:<%= c.tokenIntensity %>;--lb:<%= c.tokenIntensity / 100 %>"></span><% } %>

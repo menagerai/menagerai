@@ -292,12 +292,12 @@
     "noData": "अभी तक कोई गतिविधि नहीं है।"
   },
   "llm": {
-    "spend": "एलएलएम",
-    "tokens": "टोकन",
+    "spend": "LLM",
+    "tokens": "tok",
     "timeout": "{provider} से एलएलएम उपयोग डेटा अस्थायी रूप से अनुपलब्ध है।",
     "legendSquare": "वर्ग = गतिविधि",
-    "legendSpend": "पट्टी = एलएलएम खर्च",
-    "legendTokens": "पट्टी = टोकन"
+    "legendSpend": "पट्टी = LLM खर्च",
+    "legendTokens": "पट्टी = tok"
   },
   "flash": {
     "invalidEmail": "अमान्य ईमेल",

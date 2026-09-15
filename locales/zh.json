@@ -288,11 +288,11 @@
   },
   "llm": {
     "spend": "LLM",
-    "tokens": "令牌",
+    "tokens": "tok",
     "timeout": "来自 {provider} 的 LLM 使用数据暂时不可用。",
     "legendSquare": "方块 = 活跃",
     "legendSpend": "条 = LLM 花费",
-    "legendTokens": "条 = 令牌"
+    "legendTokens": "条 = tok"
   },
   "flash": {
     "invalidEmail": "邮箱无效",
