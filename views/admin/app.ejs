@@ -54,9 +54,9 @@
    if (typeof llmWarning !== 'undefined' && llmWarning) { %><p class="muted">⚠ <%= t('llm.timeout', { provider: 'LiteLLM' }) %></p><% } %>
 <% if (_llm) {
      function _spend(v){ return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4)); }
-     function _tok(v){ return Number(v).toLocaleString(); } %>
+     function _tok(v){ return (Number(v) / 1e6).toFixed(1) + 'M'; } %>
   <%- include('../partials/score-row', { label: t('llm.spend'), value: _spend(_llm.spendRecent), color: 'red', window: _rankDays, valueFull: _spend(_llm.spendFull), windowFull: heatmapDays }) %>
-  <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(_llm.tokensRecent), color: 'blu', sub: true, window: _rankDays, valueFull: _tok(_llm.tokensFull), windowFull: heatmapDays }) %>
+  <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(_llm.tokensRecent), color: 'blu', window: _rankDays, valueFull: _tok(_llm.tokensFull), windowFull: heatmapDays }) %>
 <% } %>
 <%- include('../partials/heatmap', { heatmap, heatmapDays, llm: _llmOn }) %>
 

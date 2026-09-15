@@ -283,12 +283,12 @@
     "intro": "Top {n} apps and users by activity over the last {days} days. Each card links through to its full details.",
     "topApps": "Top apps",
     "topUsers": "Top users",
-    "score": "Activity score",
+    "score": "Activity",
     "noData": "No activity yet."
   },
   "llm": {
     "spend": "LLM",
-    "tokens": "tokens",
+    "tokens": "tok",
     "timeout": "LLM usage data from {provider} is temporarily unavailable.",
     "legendSquare": "square = activity",
     "legendSpend": "bar = LLM spend",

@@ -7,9 +7,12 @@
     <div class="hm-col">
       <% week.forEach(function(c){ %>
         <% if (!c.day) { %>
-          <span class="hm-cell empty"></span>
-        <% } else if (llm && (c.count || c.spend != null)) { %>
-          <%# --i/--ir/--ib are numbers from intensityFor (not user input); lengths are intensity/100. %>
+          <%# padding cell — matches the day-cell size so columns stay aligned. %>
+          <span class="hm-cell empty<%= llm ? ' llm' : '' %>"></span>
+        <% } else if (llm) { %>
+          <%# Every day is a 14px box (even empty ones), so the grid keeps stable
+              whitespace around the 11px square and never goes wavy.
+              --i/--ir/--ib are numbers from intensityFor (not user input). %>
           <span class="hm-cell llm<%= c.count ? ' on' : '' %>" title="<%= c.day %>: <%= c.count %><%= c.spend != null ? ` · $${(c.spend).toFixed(4)} · ${c.tokens} tok` : '' %>">
             <span class="sq"<%- c.count ? ` style="--i:${c.intensity}"` : '' %>></span>
             <% if (c.spend > 0) { %><span class="bar-v on" style="--ir:<%= c.spendIntensity %>;--lv:<%= c.spendIntensity / 100 %>"></span><% } %>

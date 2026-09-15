@@ -204,7 +204,8 @@
     .hm-legend .sw-red { background:var(--red-hi); } .hm-legend .sw-blu { background:var(--blu-hi); }
     /* Score rows (activity / LLM spend / tokens) on cards and detail pages. */
     .score-row { font-size:12px; margin:0 0 2px; display:flex; align-items:baseline; gap:6px; }
-    .score-row .lbl { min-width:52px; color:var(--muted); } .score-row .lbl-sub { padding-left:18px; }
+    /* Fixed label column so the Activity / LLM / tok values all start at the same x. */
+    .score-row .lbl { width:56px; flex:none; color:var(--muted); }
     .score-row .val-red { color:var(--red-hi); } .score-row .val-blu { color:var(--blu-hi); }
     .score-row + .score-row { margin-top:0; }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
