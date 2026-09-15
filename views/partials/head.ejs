@@ -8,7 +8,8 @@
   <title><%= typeof title !== 'undefined' ? title : t('nav.brand') %></title>
   <style>
     :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; --demo-banner-h:0px;
-            --hm-zero:#ebedf0; --hm-lo:#9be9a8; --hm-hi:#216e39; }
+            --hm-zero:#ebedf0; --hm-lo:#9be9a8; --hm-hi:#216e39;
+            --red-lo:#fca5a5; --red-hi:#b91c1c; --blu-lo:#93c5fd; --blu-hi:#1d4ed8; }
     * { box-sizing: border-box; }
     body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg);
            /* Stop mobile Safari/Chrome from auto-inflating text by content size,
@@ -186,7 +187,26 @@
        ramp perceptually even, so adjacent counts stay tellable apart at 11px —
        a handful of fixed buckets made every busy day the same shade. */
     .hm-cell.on { background: color-mix(in oklab, var(--hm-hi) calc(var(--i, 0) * 1%), var(--hm-lo)); }
+    /* Tri-metric LLM cell: the green square shrinks to .sq in the top-right of a
+       slightly larger box, freeing an L-shaped gutter for a red spend bar (left
+       edge) and a blue token bar (bottom edge). Bars use the same 0-100 ramp as
+       the square (--ir/--ib for colour), scaled to length by --lv/--lb. Only the
+       .llm variant restructures, so the plain activity cell is unchanged. */
+    .hm-cell.llm { position:relative; width:14px; height:14px; background:transparent; border-radius:0; }
+    .hm-cell.llm .sq { position:absolute; top:0; right:0; width:11px; height:11px; border-radius:2px; background:var(--hm-zero); display:block; }
+    .hm-cell.llm.on .sq { background: color-mix(in oklab, var(--hm-hi) calc(var(--i, 0) * 1%), var(--hm-lo)); }
+    .hm-cell.llm .bar-v { position:absolute; left:0; bottom:0; width:2px; height:11px; transform:scaleY(var(--lv, 0)); transform-origin:bottom; border-radius:1px; }
+    .hm-cell.llm .bar-h { position:absolute; left:0; bottom:0; height:2px; width:11px; transform:scaleX(var(--lb, 0)); transform-origin:left; border-radius:1px; }
+    .hm-cell.llm .bar-v.on { background: color-mix(in oklab, var(--red-hi) calc(var(--ir, 0) * 1%), var(--red-lo)); }
+    .hm-cell.llm .bar-h.on { background: color-mix(in oklab, var(--blu-hi) calc(var(--ib, 0) * 1%), var(--blu-lo)); }
     .hm-legend { display:flex; gap:4px; align-items:center; justify-content:center; font-size:12px; margin-top:6px; }
+    .hm-legend .sw { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; }
+    .hm-legend .sw-red { background:var(--red-hi); } .hm-legend .sw-blu { background:var(--blu-hi); }
+    /* Score rows (activity / LLM spend / tokens) on cards and detail pages. */
+    .score-row { font-size:12px; margin:0 0 2px; display:flex; align-items:baseline; gap:6px; }
+    .score-row .lbl { min-width:52px; color:var(--muted); } .score-row .lbl-sub { padding-left:18px; }
+    .score-row .val-red { color:var(--red-hi); } .score-row .val-blu { color:var(--blu-hi); }
+    .score-row + .score-row { margin-top:0; }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
        the heatmap's real column count) is exactly the width one full-window
        heatmap needs; the centered .wrap.wide is two of those wide. The grid fits

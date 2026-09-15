@@ -122,7 +122,31 @@ export const config = {
   // How many cards each dashboard list (Top apps / Top users) shows. Purely
   // additive with a sensible default — no deploy-side change required to ship.
   dashboardTopLimit: int('DASHBOARD_TOP_LIMIT', 6),
+
+  // ---- LLM usage metrics (optional) ----
+  // When llmProxyVendor is set (and base URL + key present) the dashboard and
+  // app/user detail pages overlay LLM spend (red) and token usage (blue) onto the
+  // activity heatmap, pulled from a LiteLLM proxy. Unset => feature silently off
+  // and every page renders exactly as today. See design/llm-usage-plan.md.
+  llmProxyVendor: opt('LLM_PROXY_VENDOR'),
+  llmProxyBaseUrl: opt('LLM_PROXY_BASE_URL').replace(/\/+$/, ''),
+  llmProxyMgmtApiKey: opt('LLM_PROXY_MGMT_API_KEY'),
+  // Which LiteLLM field a portal email is matched against for per-user usage:
+  // 'end_user' (the "Customer" field) or 'user_id' (internal user). Empty => the
+  // per-user LLM section is skipped (per-app still works).
+  llmProxyUserKey: opt('LLM_PROXY_USER_KEY'),
+  llmCacheTtlMs: int('LLM_PROXY_CACHE_TTL_MS', 60_000),
+  llmMaxPages: int('LLM_PROXY_MAX_PAGES', 50),
 };
+
+// The LLM feature is off unless a supported vendor and its connection details are
+// all present. Kept as a warning (never a throw) so a partial config degrades to
+// activity-only rather than breaking boot — matching the "silently off" contract.
+if (config.llmProxyVendor && config.llmProxyVendor !== 'litellm') {
+  console.warn(`Unsupported LLM_PROXY_VENDOR: ${config.llmProxyVendor} (only "litellm"); LLM metrics disabled`);
+} else if (config.llmProxyVendor === 'litellm' && (!config.llmProxyBaseUrl || !config.llmProxyMgmtApiKey)) {
+  console.warn('LLM_PROXY_VENDOR=litellm but LLM_PROXY_BASE_URL / LLM_PROXY_MGMT_API_KEY missing; LLM metrics disabled');
+}
 
 // Fail fast on a bad TIMEZONE rather than throwing later on every usage write.
 try {

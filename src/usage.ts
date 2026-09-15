@@ -208,6 +208,12 @@ export interface HeatCell {
   day: string | null; // null = padding cell to align the grid
   count: number;
   intensity: number; // 0-100 along the shading ramp; 0 = no activity
+  // LLM overlay — populated only when buildHeatmap is given llmByDay and this day
+  // has LLM data. Absent otherwise, so the activity-only render is unchanged.
+  spend?: number; // raw USD (tooltip)
+  tokens?: number; // raw total tokens (tooltip)
+  spendIntensity?: number; // 0-100, same ramp as the green square (spend in cents)
+  tokenIntensity?: number; // 0-100, same ramp as the green square (tokens)
 }
 export interface Heatmap {
   weeks: HeatCell[][]; // each inner array is one week column, Mon..Sun
@@ -253,7 +259,17 @@ export function buildHeatmap(
   countsByDay: Map<string, number>,
   nowMs: number,
   days: number,
-  opts: { scaleMax?: number; timeZone?: string } = {},
+  opts: {
+    scaleMax?: number;
+    timeZone?: string;
+    // LLM overlay. When llmByDay is present, each day it covers also gets the
+    // spend/tokens cell fields. Both metrics use the SAME intensityFor ramp as
+    // the green square, anchored to the section peak passed here (spend in cents,
+    // tokens as-is). Absent => output is byte-identical to the activity-only view.
+    llmByDay?: Map<string, { spend: number; totalTokens: number }>;
+    llmSpendScaleCents?: number; // peak daily spend across the section, in cents
+    llmTokenScale?: number; // peak daily tokens across the section
+  } = {},
 ): Heatmap {
   const timeZone = opts.timeZone ?? config.timezone;
   // Ordered, de-duplicated day labels (dedupe guards DST-transition wobble from
@@ -273,9 +289,25 @@ export function buildHeatmap(
   const max = counts.reduce((a, b) => Math.max(a, b), 0);
   const scale = Math.max(opts.scaleMax ?? max, MIN_SCALE_MAX);
 
+  // LLM scales share the green ramp's MIN_SCALE_MAX floor, so log(scale) stays
+  // positive and a quiet section doesn't paint trivial usage at full intensity.
+  const spendScale = Math.max(opts.llmSpendScaleCents ?? 0, MIN_SCALE_MAX);
+  const tokenScale = Math.max(opts.llmTokenScale ?? 0, MIN_SCALE_MAX);
+
   const cells: HeatCell[] = [];
   for (let i = 0; i < weekdayOf(labels[0]); i++) cells.push({ day: null, count: 0, intensity: 0 });
-  labels.forEach((d, i) => cells.push({ day: d, count: counts[i], intensity: intensityFor(counts[i], scale) }));
+  labels.forEach((d, i) => {
+    const cell: HeatCell = { day: d, count: counts[i], intensity: intensityFor(counts[i], scale) };
+    const llm = opts.llmByDay?.get(d);
+    if (llm) {
+      const cents = Math.round(llm.spend * 100);
+      cell.spend = llm.spend;
+      cell.tokens = llm.totalTokens;
+      cell.spendIntensity = intensityFor(cents, spendScale);
+      cell.tokenIntensity = intensityFor(llm.totalTokens, tokenScale);
+    }
+    cells.push(cell);
+  });
   while (cells.length % 7 !== 0) cells.push({ day: null, count: 0, intensity: 0 });
 
   const weeks: HeatCell[][] = [];

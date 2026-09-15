@@ -65,7 +65,17 @@
 </div>
 
 <h2><%= t('user.activity') %></h2>
-<%- include('../partials/heatmap', { heatmap, heatmapDays }) %>
+<% var _llm = (typeof llm !== 'undefined') ? llm : null;
+   var _llmOn = (typeof llmOn !== 'undefined' && llmOn);
+   var _rankDays = (typeof rankDays !== 'undefined') ? rankDays : 30;
+   if (typeof llmWarning !== 'undefined' && llmWarning) { %><p class="muted">⚠ <%= t('llm.timeout', { provider: 'LiteLLM' }) %></p><% } %>
+<% if (_llm) {
+     function _spend(v){ return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4)); }
+     function _tok(v){ return Number(v).toLocaleString(); } %>
+  <%- include('../partials/score-row', { label: t('llm.spend'), value: _spend(_llm.spendRecent), color: 'red', window: _rankDays, valueFull: _spend(_llm.spendFull), windowFull: heatmapDays }) %>
+  <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(_llm.tokensRecent), color: 'blu', sub: true, window: _rankDays, valueFull: _tok(_llm.tokensFull), windowFull: heatmapDays }) %>
+<% } %>
+<%- include('../partials/heatmap', { heatmap, heatmapDays, llm: _llmOn }) %>
 
 <h2><%= t('user.appsUsedMost') %></h2>
 <div class="table-scroll">
