@@ -56,6 +56,7 @@ beforeEach(() => {
   clearLlmCache();
   cfg.config.llmProxyVendor = 'litellm';
   cfg.config.llmProxyUserKey = 'end_user';
+  cfg.config.timezone = 'UTC';
 });
 
 describe('fetchAppLlmDaily', () => {
@@ -69,9 +70,42 @@ describe('fetchAppLlmDaily', () => {
     ]);
     // Two spend-log pages + one key/list = 3 calls; the URL and window are built right.
     const urls = fetchFn.mock.calls.map((c) => String(c[0]));
-    expect(urls.some((u) => u.includes('/spend/logs/v2?start_date=2026-09-01') && u.includes('page=1'))).toBe(true);
+    // start_date is widened one UTC day below sinceDay (2026-09-01 -> 2026-08-31).
+    expect(urls.some((u) => u.includes('/spend/logs/v2?start_date=2026-08-31') && u.includes('page=1'))).toBe(true);
     expect(urls.filter((u) => u.includes('/spend/logs/v2')).length).toBe(2);
     expect(urls.some((u) => u.includes('/key/list'))).toBe(true);
+  });
+
+  it('deduplicates concurrent cold-cache loads into a single shared pull', async () => {
+    const fetchFn = installFetch();
+    // Cold cache, all fired at once — the dashboard's real access pattern.
+    await Promise.all([
+      fetchAppLlmDaily('vividimage', SINCE),
+      fetchAppLlmDaily('pipeline', SINCE),
+      fetchUserLlmDaily('alice@x.com', SINCE),
+    ]);
+    // One shared row pull (2 pages) + one key/list = 3, not 3x that.
+    expect(fetchFn.mock.calls.length).toBe(3);
+  });
+
+  it('widens the queried UTC range so timezone-boundary rows are not dropped', async () => {
+    const fetchFn = installFetch();
+    await fetchAppLlmDaily('vividimage', SINCE);
+    const spendUrl = fetchFn.mock.calls.map((c) => String(c[0])).find((u) => u.includes('/spend/logs/v2'))!;
+    const params = new URL(spendUrl).searchParams;
+    expect(params.get('start_date')).toBe('2026-08-31'); // sinceDay - 1 UTC day
+    expect(params.get('end_date')! > '2026-08-31').toBe(true); // today + 1 UTC day
+  });
+
+  it('buckets a UTC-evening row into the next local day for a positive-offset timezone', async () => {
+    cfg.config.timezone = 'Asia/Shanghai'; // UTC+8
+    global.fetch = vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes('/key/list')) return { ok: true, json: async () => ({ keys: [{ token: 'H', key_alias: 'app1' }], total_pages: 1 }) } as Response;
+      // 2026-09-10T16:30Z == 2026-09-11 00:30 in Asia/Shanghai -> local day 2026-09-11.
+      return { ok: true, json: async () => ({ data: [{ startTime: '2026-09-10T16:30:00Z', api_key: 'H', end_user: null, user: null, spend: 1, total_tokens: 10 }], page: 1, total_pages: 1 }) } as Response;
+    }) as unknown as typeof fetch;
+    expect(await fetchAppLlmDaily('app1', '2026-09-01')).toEqual([{ day: '2026-09-11', spend: 1, totalTokens: 10 }]);
   });
 
   it('returns null when no virtual key is aliased to the app', async () => {

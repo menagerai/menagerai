@@ -38,10 +38,12 @@ interface SpendRow {
   total_tokens: number;
 }
 
-// Both caches are keyed so a whole dashboard section shares one fetch: the first
-// card triggers the HTTP call, the rest hit the cache within the TTL window.
-const rowCache = ttlCache<string, SpendRow[]>(config.llmCacheTtlMs, 64);
-const aliasCache = ttlCache<string, Map<string, string>>(config.llmCacheTtlMs, 4);
+// The caches hold the in-flight PROMISE, not just the resolved value, so the many
+// card fetches a cold dashboard fires concurrently all await one shared pull
+// instead of each paginating the proxy independently. A rejected promise is
+// evicted so a later request retries rather than caching the failure.
+const rowCache = ttlCache<string, Promise<SpendRow[]>>(config.llmCacheTtlMs, 64);
+const aliasCache = ttlCache<string, Promise<Map<string, string>>>(config.llmCacheTtlMs, 4);
 
 const TIMEOUT_MS = 5_000;
 
@@ -63,43 +65,61 @@ async function proxyGet(path: string): Promise<Record<string, unknown>> {
   }
 }
 
-// One paginated pull of the raw spend logs for [sinceDay, today], cached by
-// window. Bounded by llmMaxPages so a busy proxy can't blow the request up.
-async function loadRows(sinceDay: string): Promise<SpendRow[]> {
+// LiteLLM interprets start_date/end_date as UTC calendar days, but we bucket rows
+// into the portal timezone. Widen the queried UTC range by a day on each side so
+// no row that maps to a local day within [sinceDay, today] is dropped at the UTC
+// boundary (e.g. a western timezone's current-local-day rows that land on the next
+// UTC date). bucket() then trims to the exact local window.
+function shiftUtcDay(day: string, deltaDays: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + deltaDays * 86_400_000).toISOString().slice(0, 10);
+}
+
+// One paginated pull of the raw spend logs for [sinceDay, today], cached (as a
+// promise) by window. Bounded by llmMaxPages so a busy proxy can't blow it up.
+function loadRows(sinceDay: string): Promise<SpendRow[]> {
   const cached = rowCache.get(sinceDay);
   if (cached) return cached;
-  const endDay = usageDay(Date.now());
-  const rows: SpendRow[] = [];
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const j = await proxyGet(`/spend/logs/v2?start_date=${sinceDay}&end_date=${endDay}&page=${page}&page_size=1000`);
-    for (const r of (j.data as SpendRow[]) ?? []) rows.push(r);
-    totalPages = Number(j.total_pages ?? 1);
-    page++;
-  } while (page <= totalPages && page <= config.llmMaxPages);
-  rowCache.set(sinceDay, rows);
-  return rows;
+  const p = (async () => {
+    const startDate = shiftUtcDay(sinceDay, -1);
+    const endDate = shiftUtcDay(usageDay(Date.now()), 1);
+    const rows: SpendRow[] = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const j = await proxyGet(`/spend/logs/v2?start_date=${startDate}&end_date=${endDate}&page=${page}&page_size=1000`);
+      for (const r of (j.data as SpendRow[]) ?? []) rows.push(r);
+      totalPages = Number(j.total_pages ?? 1);
+      page++;
+    } while (page <= totalPages && page <= config.llmMaxPages);
+    return rows;
+  })();
+  rowCache.set(sinceDay, p);
+  p.catch(() => rowCache.delete(sinceDay));
+  return p;
 }
 
 // hashed virtual-key token -> key_alias, so rows (which carry only the hash) can
-// be attributed to a portal app_key by alias.
-async function loadAliasMap(): Promise<Map<string, string>> {
+// be attributed to a portal app_key by alias. Cached as a promise (see above).
+function loadAliasMap(): Promise<Map<string, string>> {
   const cached = aliasCache.get('keys');
   if (cached) return cached;
-  const map = new Map<string, string>();
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const j = await proxyGet(`/key/list?page=${page}&page_size=200&return_full_object=true`);
-    for (const k of (j.keys as { token?: string; key_alias?: string }[]) ?? []) {
-      if (k.token && k.key_alias) map.set(k.token, k.key_alias);
-    }
-    totalPages = Number(j.total_pages ?? 1);
-    page++;
-  } while (page <= totalPages && page <= config.llmMaxPages);
-  aliasCache.set('keys', map);
-  return map;
+  const p = (async () => {
+    const map = new Map<string, string>();
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const j = await proxyGet(`/key/list?page=${page}&page_size=200&return_full_object=true`);
+      for (const k of (j.keys as { token?: string; key_alias?: string }[]) ?? []) {
+        if (k.token && k.key_alias) map.set(k.token, k.key_alias);
+      }
+      totalPages = Number(j.total_pages ?? 1);
+      page++;
+    } while (page <= totalPages && page <= config.llmMaxPages);
+    return map;
+  })();
+  aliasCache.set('keys', p);
+  p.catch(() => aliasCache.delete('keys'));
+  return p;
 }
 
 // Fold matched rows into per-day spend/token totals, bucketed by the portal tz.
