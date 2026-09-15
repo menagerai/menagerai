@@ -39,7 +39,7 @@ These capabilities are usually spread across separate tools. Menagerai combines 
 | **App-level access policy managed in a UI** | ✅ | ⚠️ varies / often config | ❌ | ❌ |
 | **Per-user / per-app adoption analytics** | ✅ | ❌ | ❌ | ❌ |
 
-The **usage analytics** — a GitHub-style activity heatmap, power users, most-used apps — is the standout: it answers the manager's question ("is anyone using what we vibe-coded?") that pure-auth tools structurally cannot.
+The **usage analytics** — a GitHub-style activity heatmap, power users, most-used apps — is the standout: it answers the manager's question ("is anyone using what we vibe-coded?") that pure-auth tools structurally cannot. Point Menagerai at an **LLM proxy** (LiteLLM is the first supported provider) and the same dashboard and detail pages overlay **LLM spend and token usage** onto each activity cell, so you can also see *how heavily* each app and user consumes models — a cost and capacity signal, entirely optional and off until configured.
 
 <p align="center"> <img src="public/top_apps.png" alt="Usage analytics — most-used apps and active users" width="640" /> </p>
 
@@ -90,6 +90,19 @@ LOGTO_MANAGEMENT_API_RESOURCE=https://your-tenant.logto.app/api
 ```
 
 (For a local `http://localhost` run, also set `COOKIE_SECURE=false`.)
+
+**Optional — LLM usage metrics.** To overlay LLM spend and token usage on the usage dashboard, point Menagerai at an LLM proxy. All of these are optional; leave `LLM_PROXY_VENDOR` unset and the feature stays off, with every page rendering exactly as before.
+
+```ini
+LLM_PROXY_VENDOR=litellm                      # only supported provider today; unset = feature off
+LLM_PROXY_BASE_URL=http://litellm:4000        # proxy base URL (internal service addr in Docker)
+LLM_PROXY_MGMT_API_KEY=sk-...                 # a management-scoped (read-only) LiteLLM key
+LLM_PROXY_USER_KEY=end_user                   # match a portal email against: end_user | user_id
+# LLM_PROXY_CACHE_TTL_MS=60000                # optional: proxy-response cache TTL
+# LLM_PROXY_MAX_PAGES=50                       # optional: safety bound on the spend-log page pull
+```
+
+Per-app data maps a portal app key to the LiteLLM virtual key of the same **alias**; per-user data matches the portal email against the field named by `LLM_PROXY_USER_KEY` (the LiteLLM **Customer**/`end_user` field by default). Both are kept aligned out-of-band and degrade gracefully to activity-only when unmatched. See [`design/llm-usage-plan.md`](./design/llm-usage-plan.md) for the full contract.
 
 **3. Run it:**
 
@@ -142,7 +155,7 @@ Scope discipline keeps an access-control plane trustworthy:
 ## Roadmap
 
 - **Now** — one-command `docker compose up` quickstart, env-validated startup with a self-explaining config screen, and a seeded demo app (all in this repo).
-- **Next** — broader provider support (more gateways, identity providers, and database options over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today.
+- **Next** — broader provider support (more gateways, identity providers, database options, and LLM proxies over time) behind the existing pluggable abstractions. Storage runs on a bundled **SQLite** file by default, with **MongoDB** as a pluggable alternative today; LLM usage metrics ship with **LiteLLM** as the first proxy provider.
 
 ## Frequently asked questions (FAQ)
 
@@ -164,7 +177,7 @@ Admins manage users, organizational roles, app grants, and direct user overrides
 
 ### How can I see whether internal apps are being used?
 
-Menagerai records daily active usage at the gateway and provides per-app and per-user adoption analytics, including an activity heatmap, most-used apps, and power users.
+Menagerai records daily active usage at the gateway and provides per-app and per-user adoption analytics, including an activity heatmap, most-used apps, and power users. If you connect an LLM proxy (LiteLLM today), the same views additionally overlay LLM spend and token usage per app and per user, so you can see not just *whether* apps are used but *how heavily* they consume models.
 
 ### Is Menagerai an identity provider or deployment platform?
 
