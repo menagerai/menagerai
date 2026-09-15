@@ -208,11 +208,12 @@
     .hm-legend .sw { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; background:var(--hm-hi); }
     .hm-legend .sw-red { background:var(--red-bar); } .hm-legend .sw-blu { background:var(--blu-bar); }
     /* Score table: metric rows (Activity / LLM / tok) × window columns (30d / Nd),
-       so every figure lines up on the table grid instead of a run of badges. */
-    .score-table { font-size:12px; border-collapse:collapse; margin:2px 0 8px; }
-    .score-table th, .score-table td { padding:0 0 1px; font-weight:normal; white-space:nowrap; text-align:right; }
-    .score-table th.lbl { text-align:left; color:var(--muted); padding-right:12px; }
-    .score-table td { padding-left:14px; }
+       so every figure lines up on the table grid instead of a run of badges.
+       width:auto (overriding the global full-width table) keeps it left-justified
+       and hugging its content, so labels and values stay close together. */
+    .score-table { width:auto; font-size:12px; border-collapse:collapse; margin:2px 0 8px; background:transparent; }
+    .score-table th, .score-table td { padding:0 16px 1px 0; font-weight:normal; white-space:nowrap; text-align:left; }
+    .score-table th.lbl { color:var(--muted); }
     .score-table thead th { color:var(--muted); font-size:11px; font-weight:600; }
     .score-table .val-red { color:var(--red-hi); } .score-table .val-blu { color:var(--blu-hi); }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
