@@ -9,7 +9,10 @@
   <style>
     :root { --fg:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --bg:#f9fafb; --topbar-h:52px; --demo-banner-h:0px;
             --hm-zero:#ebedf0; --hm-lo:#9be9a8; --hm-hi:#216e39;
-            --red-lo:#fca5a5; --red-hi:#b91c1c; --blu-lo:#93c5fd; --blu-hi:#1d4ed8; }
+            --red-lo:#fca5a5; --red-hi:#b91c1c; --blu-lo:#93c5fd; --blu-hi:#1d4ed8;
+            /* Bars/swatches use brighter maxima than the text colours so even a
+               full-intensity 2px bar stays clearly red/blue rather than near-black. */
+            --red-bar:#ef4444; --blu-bar:#3b82f6; }
     * { box-sizing: border-box; }
     body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg);
            /* Stop mobile Safari/Chrome from auto-inflating text by content size,
@@ -197,17 +200,21 @@
     .hm-cell.llm.on .sq { background: color-mix(in oklab, var(--hm-hi) calc(var(--i, 0) * 1%), var(--hm-lo)); }
     .hm-cell.llm .bar-v { position:absolute; left:0; bottom:0; width:2px; height:11px; transform:scaleY(var(--lv, 0)); transform-origin:bottom; border-radius:1px; }
     .hm-cell.llm .bar-h { position:absolute; left:0; bottom:0; height:2px; width:11px; transform:scaleX(var(--lb, 0)); transform-origin:left; border-radius:1px; }
-    .hm-cell.llm .bar-v.on { background: color-mix(in oklab, var(--red-hi) calc(var(--ir, 0) * 1%), var(--red-lo)); }
-    .hm-cell.llm .bar-h.on { background: color-mix(in oklab, var(--blu-hi) calc(var(--ib, 0) * 1%), var(--blu-lo)); }
+    .hm-cell.llm .bar-v.on { background: color-mix(in oklab, var(--red-bar) calc(var(--ir, 0) * 1%), var(--red-lo)); }
+    .hm-cell.llm .bar-h.on { background: color-mix(in oklab, var(--blu-bar) calc(var(--ib, 0) * 1%), var(--blu-lo)); }
     .hm-legend { display:flex; gap:4px; align-items:center; justify-content:center; font-size:12px; margin-top:6px; }
-    .hm-legend .sw { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; }
-    .hm-legend .sw-red { background:var(--red-hi); } .hm-legend .sw-blu { background:var(--blu-hi); }
-    /* Score rows (activity / LLM spend / tokens) on cards and detail pages. */
-    .score-row { font-size:12px; margin:0 0 2px; display:flex; align-items:baseline; gap:6px; }
-    /* Fixed label column so the Activity / LLM / tok values all start at the same x. */
-    .score-row .lbl { width:56px; flex:none; color:var(--muted); }
-    .score-row .val-red { color:var(--red-hi); } .score-row .val-blu { color:var(--blu-hi); }
-    .score-row + .score-row { margin-top:0; }
+    /* Legend swatches: the plain .sw is the green activity square (rendered like
+       the coloured bar swatches, not left blank); .sw-red/.sw-blu match the bars. */
+    .hm-legend .sw { display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; background:var(--hm-hi); }
+    .hm-legend .sw-red { background:var(--red-bar); } .hm-legend .sw-blu { background:var(--blu-bar); }
+    /* Score table: metric rows (Activity / LLM / tok) × window columns (30d / Nd),
+       so every figure lines up on the table grid instead of a run of badges. */
+    .score-table { font-size:12px; border-collapse:collapse; margin:2px 0 8px; }
+    .score-table th, .score-table td { padding:0 0 1px; font-weight:normal; white-space:nowrap; text-align:right; }
+    .score-table th.lbl { text-align:left; color:var(--muted); padding-right:12px; }
+    .score-table td { padding-left:14px; }
+    .score-table thead th { color:var(--muted); font-size:11px; font-weight:600; }
+    .score-table .val-red { color:var(--red-hi); } .score-table .val-blu { color:var(--blu-hi); }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
        the heatmap's real column count) is exactly the width one full-window
        heatmap needs; the centered .wrap.wide is two of those wide. The grid fits

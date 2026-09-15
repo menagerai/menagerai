@@ -72,8 +72,10 @@
 <% if (_llm) {
      function _spend(v){ return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4)); }
      function _tok(v){ return (Number(v) / 1e6).toFixed(1) + 'M'; } %>
-  <%- include('../partials/score-row', { label: t('llm.spend'), value: _spend(_llm.spendRecent), color: 'red', window: _rankDays, valueFull: _spend(_llm.spendFull), windowFull: heatmapDays }) %>
-  <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(_llm.tokensRecent), color: 'blu', window: _rankDays, valueFull: _tok(_llm.tokensFull), windowFull: heatmapDays }) %>
+  <%- include('../partials/score-table', { recentDays: _rankDays, fullDays: heatmapDays, rows: [
+       { label: t('llm.spend'), color: 'red', recent: _spend(_llm.spendRecent), full: _spend(_llm.spendFull) },
+       { label: t('llm.tokens'), color: 'blu', recent: _tok(_llm.tokensRecent), full: _tok(_llm.tokensFull) },
+     ] }) %>
 <% } %>
 <%- include('../partials/heatmap', { heatmap, heatmapDays, llm: _llmOn }) %>
 

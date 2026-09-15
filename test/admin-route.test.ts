@@ -155,9 +155,9 @@ describe('GET /admin/dashboard — render', () => {
     expect(res.text).toContain('dau@example.com');
     expect(res.text).toContain('/admin/users/u1'); // user card links through
     expect(res.text).toContain('Dau User'); // name shown beside the email
-    expect(res.text).toContain('>Activity<'); // dual-window activity score on each card
-    expect(res.text).toContain('badge-window'); // day windows rendered as badges
-    expect(res.text).toContain('>30d</span>'); // rank-window badge
+    expect(res.text).toContain('>Activity<'); // activity row in the score table
+    expect(res.text).toContain('score-table'); // metrics rendered as a small table
+    expect(res.text).toContain('>30d</th>'); // rank-window column header
   });
 });
 

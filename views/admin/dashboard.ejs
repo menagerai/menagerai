@@ -46,11 +46,14 @@
           <a href="/admin/apps/<%= a.app_key %>"><%= a.name %></a>
           <code><%= a.app_key %></code>
         </div>
-        <%- include('../partials/score-row', { label: t('dashboard.score'), value: a.active, color: '', window: rankDays, valueFull: a.scoreFull, windowFull: heatmapDays }) %>
-        <% if (a.llm) { %>
-          <%- include('../partials/score-row', { label: t('llm.spend'), value: _spend(a.llm.spendRecent), color: 'red', window: rankDays, valueFull: _spend(a.llm.spendFull), windowFull: heatmapDays }) %>
-          <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(a.llm.tokensRecent), color: 'blu', window: rankDays, valueFull: _tok(a.llm.tokensFull), windowFull: heatmapDays }) %>
-        <% } %>
+        <%
+          var aRows = [{ label: t('dashboard.score'), color: '', recent: a.active, full: a.scoreFull }];
+          if (a.llm) {
+            aRows.push({ label: t('llm.spend'), color: 'red', recent: _spend(a.llm.spendRecent), full: _spend(a.llm.spendFull) });
+            aRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(a.llm.tokensRecent), full: _tok(a.llm.tokensFull) });
+          }
+        %>
+        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: aRows }) %>
         <%- include('../partials/heatmap', { heatmap: a.heatmap, heatmapDays, showLegend: false, llm: _appLlmOn }) %>
       </div>
     <% }) %>
@@ -79,11 +82,14 @@
           <a href="/admin/users/<%= u.user_id %>"><%= u.email %></a>
           <% if (u.name) { %><code><%= u.name %></code><% } %>
         </div>
-        <%- include('../partials/score-row', { label: t('dashboard.score'), value: u.active, color: '', window: rankDays, valueFull: u.scoreFull, windowFull: heatmapDays }) %>
-        <% if (u.llm) { %>
-          <%- include('../partials/score-row', { label: t('llm.spend'), value: _spend(u.llm.spendRecent), color: 'red', window: rankDays, valueFull: _spend(u.llm.spendFull), windowFull: heatmapDays }) %>
-          <%- include('../partials/score-row', { label: t('llm.tokens'), value: _tok(u.llm.tokensRecent), color: 'blu', window: rankDays, valueFull: _tok(u.llm.tokensFull), windowFull: heatmapDays }) %>
-        <% } %>
+        <%
+          var uRows = [{ label: t('dashboard.score'), color: '', recent: u.active, full: u.scoreFull }];
+          if (u.llm) {
+            uRows.push({ label: t('llm.spend'), color: 'red', recent: _spend(u.llm.spendRecent), full: _spend(u.llm.spendFull) });
+            uRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(u.llm.tokensRecent), full: _tok(u.llm.tokensFull) });
+          }
+        %>
+        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: uRows }) %>
         <%- include('../partials/heatmap', { heatmap: u.heatmap, heatmapDays, showLegend: false, llm: _userLlmOn }) %>
       </div>
     <% }) %>

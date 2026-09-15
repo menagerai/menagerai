@@ -1,9 +1,0 @@
-<%# One score line: a label, a value, and a windowed badge. `color` keys the value
-    colour (activity default / red spend / blue tokens). The fixed-width label
-    column keeps every row's value aligned on the same starting x. %>
-<div class="score-row">
-  <span class="lbl"><%= label %></span>
-  <span class="val<%= (typeof color !== 'undefined' && color) ? ' val-' + color : '' %>"><%= value %></span>
-  <% if (typeof window !== 'undefined' && window) { %><span class="badge-window"><%= window %>d</span><% } %>
-  <% if (typeof windowFull !== 'undefined' && windowFull) { %>/ <span class="val"><%= valueFull %></span><span class="badge-window"><%= windowFull %>d</span><% } %>
-</div>

@@ -1,0 +1,18 @@
+<%# A compact metrics table: one column per window (recentDays / fullDays), one row
+    per metric. `rows` is [{ label, color, recent, full }] where color is ''
+    (activity), 'red' (spend) or 'blu' (tokens). The table grid aligns every figure
+    automatically, replacing a run of per-metric window badges. %>
+<table class="score-table">
+  <thead>
+    <tr><th></th><th><%= recentDays %>d</th><th><%= fullDays %>d</th></tr>
+  </thead>
+  <tbody>
+    <% rows.forEach(function(r){ var cls = r.color ? ' val-' + r.color : ''; %>
+      <tr>
+        <th class="lbl<%= cls %>"><%= r.label %></th>
+        <td class="<%= cls.trim() %>"><%= r.recent %></td>
+        <td class="<%= cls.trim() %>"><%= r.full %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
