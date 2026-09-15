@@ -286,6 +286,14 @@
     "score": "Activity score",
     "noData": "No activity yet."
   },
+  "llm": {
+    "spend": "LLM",
+    "tokens": "tokens",
+    "timeout": "LLM usage data from {provider} is temporarily unavailable.",
+    "legendSquare": "square = activity",
+    "legendSpend": "bar = LLM spend",
+    "legendTokens": "bar = tokens"
+  },
   "flash": {
     "invalidEmail": "Invalid email",
     "emailNotAllowed": "Email not on the allowlist",

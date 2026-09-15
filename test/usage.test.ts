@@ -108,6 +108,47 @@ describe('buildHeatmap — GitHub-style grid', () => {
     expect(hm.weeks.flat().find((c) => c.day === '2026-06-23')?.count).toBe(1);
     expect(hm.weeks.flat().find((c) => c.day === '2026-06-22')?.count).toBe(0);
   });
+
+  const cellOf = (hm: ReturnType<typeof buildHeatmap>, day: string) =>
+    hm.weeks.flat().find((c) => c.day === day);
+
+  it('leaves cells byte-identical when no llmByDay is given', () => {
+    const counts = new Map([['2026-06-23', 7]]);
+    const plain = buildHeatmap(counts, now, 7, { timeZone: 'Asia/Shanghai' });
+    const cell = cellOf(plain, '2026-06-23');
+    // No LLM fields leak onto the activity-only render.
+    expect(cell).not.toHaveProperty('spend');
+    expect(cell?.spendIntensity).toBeUndefined();
+    expect(cell?.tokenIntensity).toBeUndefined();
+  });
+
+  it('overlays spend/tokens on the same ramp as the green square, anchored to the section peak', () => {
+    const counts = new Map([['2026-06-23', 3]]);
+    const llmByDay = new Map([
+      ['2026-06-23', { spend: 2.0, totalTokens: 1000 }], // section peak
+      ['2026-06-22', { spend: 0.5, totalTokens: 250 }],
+    ]);
+    // Peaks: spend 2.00 => 200 cents; tokens 1000.
+    const hm = buildHeatmap(counts, now, 7, {
+      timeZone: 'Asia/Shanghai', llmByDay, llmSpendScaleCents: 200, llmTokenScale: 1000,
+    });
+    const peak = cellOf(hm, '2026-06-23');
+    expect(peak).toMatchObject({ spend: 2.0, tokens: 1000, spendIntensity: 100, tokenIntensity: 100 });
+    const lo = cellOf(hm, '2026-06-22');
+    // log(50)/log(200) ≈ 0.738 -> 74 ; log(250)/log(1000) ≈ 0.799 -> 80
+    expect(lo).toMatchObject({ spend: 0.5, tokens: 250, spendIntensity: 74, tokenIntensity: 80 });
+  });
+
+  it('emits no bar for a day with zero spend/tokens even when other days have LLM data', () => {
+    const llmByDay = new Map([
+      ['2026-06-23', { spend: 1.0, totalTokens: 500 }],
+      ['2026-06-22', { spend: 0, totalTokens: 0 }],
+    ]);
+    const hm = buildHeatmap(new Map(), now, 7, { timeZone: 'Asia/Shanghai', llmByDay, llmSpendScaleCents: 100, llmTokenScale: 500 });
+    const zero = cellOf(hm, '2026-06-22');
+    // spend/tokens are recorded as 0, so the view renders no bar (c.spend > 0 gate).
+    expect(zero).toMatchObject({ spend: 0, tokens: 0, spendIntensity: 0, tokenIntensity: 0 });
+  });
 });
 
 describe('recordUsage — dedup + idempotent upsert', () => {

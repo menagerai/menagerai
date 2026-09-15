@@ -291,6 +291,14 @@
     "score": "गतिविधि स्कोर",
     "noData": "अभी तक कोई गतिविधि नहीं है।"
   },
+  "llm": {
+    "spend": "एलएलएम",
+    "tokens": "टोकन",
+    "timeout": "{provider} से एलएलएम उपयोग डेटा अस्थायी रूप से अनुपलब्ध है।",
+    "legendSquare": "वर्ग = गतिविधि",
+    "legendSpend": "पट्टी = एलएलएम खर्च",
+    "legendTokens": "पट्टी = टोकन"
+  },
   "flash": {
     "invalidEmail": "अमान्य ईमेल",
     "emailNotAllowed": "ईमेल allowlist में नहीं है",

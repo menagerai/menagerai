@@ -1,0 +1,9 @@
+<%# One score line: a label, a value, and a windowed badge. `color` keys the value
+    colour (green activity / red spend / blue tokens); `sub` indents the label so a
+    secondary row (tokens under spend) aligns under the row above it. %>
+<div class="score-row">
+  <span class="lbl<%= (typeof sub !== 'undefined' && sub) ? ' lbl-sub' : '' %>"><%= label %></span>
+  <span class="val<%= (typeof color !== 'undefined' && color) ? ' val-' + color : '' %>"><%= value %></span>
+  <% if (typeof window !== 'undefined' && window) { %><span class="badge-window"><%= window %>d</span><% } %>
+  <% if (typeof windowFull !== 'undefined' && windowFull) { %>/ <span class="val"><%= valueFull %></span><span class="badge-window"><%= windowFull %>d</span><% } %>
+</div>
