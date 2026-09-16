@@ -198,8 +198,12 @@
     .hm-cell.llm { position:relative; width:14px; height:14px; background:transparent; border-radius:0; }
     .hm-cell.llm .sq { position:absolute; top:0; right:0; width:11px; height:11px; border-radius:2px; background:var(--hm-zero); display:block; }
     .hm-cell.llm.on .sq { background: color-mix(in oklab, var(--hm-hi) calc(var(--i, 0) * 1%), var(--hm-lo)); }
-    .hm-cell.llm .bar-v { position:absolute; left:0; bottom:0; width:2px; height:11px; transform:scaleY(var(--lv, 0)); transform-origin:bottom; border-radius:1px; }
-    .hm-cell.llm .bar-h { position:absolute; left:0; bottom:0; height:2px; width:11px; transform:scaleX(var(--lb, 0)); transform-origin:left; border-radius:1px; }
+    /* bar-v (spend) rises from the square's bottom edge (bottom:3px = 14-11); bar-h
+       (tokens) runs from the square's left edge (left:3px = 14-11). Their zeros are
+       pushed off the corner, so the bottom-left 3x3 stays empty and each bar's length
+       spans exactly one square side, with a 1px buffer to the square. */
+    .hm-cell.llm .bar-v { position:absolute; left:0; bottom:3px; width:2px; height:11px; transform:scaleY(var(--lv, 0)); transform-origin:bottom; border-radius:1px; }
+    .hm-cell.llm .bar-h { position:absolute; left:3px; bottom:0; height:2px; width:11px; transform:scaleX(var(--lb, 0)); transform-origin:left; border-radius:1px; }
     .hm-cell.llm .bar-v.on { background: color-mix(in oklab, var(--red-bar) calc(var(--ir, 0) * 1%), var(--red-lo)); }
     .hm-cell.llm .bar-h.on { background: color-mix(in oklab, var(--blu-bar) calc(var(--ib, 0) * 1%), var(--blu-lo)); }
     .hm-legend { display:flex; gap:4px; align-items:center; justify-content:center; font-size:12px; margin-top:6px; }
@@ -211,10 +215,11 @@
        so every figure lines up on the table grid instead of a run of badges.
        width:auto (overriding the global full-width table) keeps it left-justified
        and hugging its content, so labels and values stay close together. */
-    .score-table { width:auto; font-size:12px; border-collapse:collapse; margin:2px 0 8px; background:transparent; }
-    .score-table th, .score-table td { padding:0 16px 1px 0; font-weight:normal; white-space:nowrap; text-align:left; }
+    .score-table { width:auto; font-size:11px; border-collapse:collapse; margin:2px 0 8px; background:transparent; }
+    .score-table th, .score-table td { padding:0 16px 1px 0; font-weight:normal; white-space:nowrap; text-align:left; text-transform:none; letter-spacing:normal; }
     .score-table th.lbl { color:var(--muted); }
-    .score-table thead th { color:var(--muted); font-size:11px; font-weight:600; }
+    .score-table thead th { color:var(--muted); font-size:10px; font-weight:600; }
+    .score-table .val-grn { color:var(--hm-hi); }
     .score-table .val-red { color:var(--red-hi); } .score-table .val-blu { color:var(--blu-hi); }
     /* Dashboard: Top apps / Top users as heatmap cards. --card-w (computed from
        the heatmap's real column count) is exactly the width one full-window

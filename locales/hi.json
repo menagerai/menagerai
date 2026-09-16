@@ -293,7 +293,7 @@
   },
   "llm": {
     "spend": "LLM",
-    "tokens": "tok",
+    "tokens": "Tokens",
     "timeout": "{provider} से एलएलएम उपयोग डेटा अस्थायी रूप से अनुपलब्ध है।",
     "legendSquare": "वर्ग = गतिविधि",
     "legendSpend": "पट्टी = LLM खर्च",

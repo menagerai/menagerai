@@ -47,7 +47,7 @@
           <code><%= a.app_key %></code>
         </div>
         <%
-          var aRows = [{ label: t('dashboard.score'), color: '', recent: a.active, full: a.scoreFull }];
+          var aRows = [{ label: t('dashboard.score'), color: 'grn', recent: a.active, full: a.scoreFull }];
           if (a.llm) {
             aRows.push({ label: t('llm.spend'), color: 'red', recent: _spend(a.llm.spendRecent), full: _spend(a.llm.spendFull) });
             aRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(a.llm.tokensRecent), full: _tok(a.llm.tokensFull) });
@@ -83,7 +83,7 @@
           <% if (u.name) { %><code><%= u.name %></code><% } %>
         </div>
         <%
-          var uRows = [{ label: t('dashboard.score'), color: '', recent: u.active, full: u.scoreFull }];
+          var uRows = [{ label: t('dashboard.score'), color: 'grn', recent: u.active, full: u.scoreFull }];
           if (u.llm) {
             uRows.push({ label: t('llm.spend'), color: 'red', recent: _spend(u.llm.spendRecent), full: _spend(u.llm.spendFull) });
             uRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(u.llm.tokensRecent), full: _tok(u.llm.tokensFull) });

@@ -288,7 +288,7 @@
   },
   "llm": {
     "spend": "LLM",
-    "tokens": "tok",
+    "tokens": "Tokens",
     "timeout": "LLM usage data from {provider} is temporarily unavailable.",
     "legendSquare": "square = activity",
     "legendSpend": "bar = LLM spend",
