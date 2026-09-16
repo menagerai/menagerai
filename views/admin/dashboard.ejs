@@ -11,7 +11,7 @@
   var _cardW = _w ? (_w * _col - 3 + 34) : 760;
 
   // Formatters for the LLM score rows. Tokens are rounded to 0.1M.
-  function _spend(v){ return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4)); }
+  function _spend(v){ return '$' + Number(v).toFixed(2); }
   function _tok(v){ return (Number(v) / 1e6).toFixed(1) + 'M'; }
 %>
 <%- include('../partials/head', { title: t('dashboard.title'), user, isAdmin, wide: true, wrapStyle: '--card-w:' + _cardW + 'px' }) %>
@@ -53,8 +53,8 @@
             aRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(a.llm.tokensRecent), full: _tok(a.llm.tokensFull) });
           }
         %>
-        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: aRows }) %>
         <%- include('../partials/heatmap', { heatmap: a.heatmap, heatmapDays, showLegend: false, llm: _appLlmOn }) %>
+        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: aRows }) %>
       </div>
     <% }) %>
   </div>
@@ -89,8 +89,8 @@
             uRows.push({ label: t('llm.tokens'), color: 'blu', recent: _tok(u.llm.tokensRecent), full: _tok(u.llm.tokensFull) });
           }
         %>
-        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: uRows }) %>
         <%- include('../partials/heatmap', { heatmap: u.heatmap, heatmapDays, showLegend: false, llm: _userLlmOn }) %>
+        <%- include('../partials/score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: uRows }) %>
       </div>
     <% }) %>
   </div>

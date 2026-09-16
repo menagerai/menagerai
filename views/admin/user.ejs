@@ -69,15 +69,15 @@
    var _llmOn = (typeof llmOn !== 'undefined' && llmOn);
    var _rankDays = (typeof rankDays !== 'undefined') ? rankDays : 30;
    if (typeof llmWarning !== 'undefined' && llmWarning) { %><p class="muted">⚠ <%= t('llm.timeout', { provider: 'LiteLLM' }) %></p><% } %>
+<%- include('../partials/heatmap', { heatmap, heatmapDays, llm: _llmOn }) %>
 <% if (_llm) {
-     function _spend(v){ return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4)); }
+     function _spend(v){ return '$' + Number(v).toFixed(2); }
      function _tok(v){ return (Number(v) / 1e6).toFixed(1) + 'M'; } %>
   <%- include('../partials/score-table', { recentDays: _rankDays, fullDays: heatmapDays, rows: [
        { label: t('llm.spend'), color: 'red', recent: _spend(_llm.spendRecent), full: _spend(_llm.spendFull) },
        { label: t('llm.tokens'), color: 'blu', recent: _tok(_llm.tokensRecent), full: _tok(_llm.tokensFull) },
      ] }) %>
 <% } %>
-<%- include('../partials/heatmap', { heatmap, heatmapDays, llm: _llmOn }) %>
 
 <h2><%= t('user.appsUsedMost') %></h2>
 <div class="table-scroll">
