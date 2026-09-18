@@ -135,17 +135,23 @@ adminRouter.get('/dashboard', async (req, res) => {
   // before cutting to the top N. LLM totals reuse the cached row pull (no extra
   // proxy traffic); a proxy failure degrades to activity-only ranking + a warning.
   let llmWarning = false;
-  const safeTotals = async (p: Promise<LlmTotals>): Promise<LlmTotals> => {
+  // A failed proxy pull evicts its cached (rejected) promise, so re-fetching it for
+  // the overlay below would incur a *second* 5s timeout in the same request. Track
+  // the failure per section and skip that section's overlay fetch when it's down.
+  let appLlmDown = false;
+  let userLlmDown = false;
+  const safeTotals = async (p: Promise<LlmTotals>, markDown: () => void): Promise<LlmTotals> => {
     try {
       return await p;
     } catch {
       llmWarning = true;
+      markDown();
       return new Map();
     }
   };
   const [appTotals, userTotals] = await Promise.all([
-    safeTotals(fetchAllAppLlmTotals(loadSince, rankSince)),
-    safeTotals(fetchAllUserLlmTotals(loadSince, rankSince)),
+    safeTotals(fetchAllAppLlmTotals(loadSince, rankSince), () => { appLlmDown = true; }),
+    safeTotals(fetchAllUserLlmTotals(loadSince, rankSince), () => { userLlmDown = true; }),
   ]);
   const [topApps, topUsers] = await Promise.all([
     topAppsByActivity(rankSince, limit, llmBoostFn(appTotals)),
@@ -192,8 +198,8 @@ adminRouter.get('/dashboard', async (req, res) => {
     });
   };
   const [appLlm, userLlm] = await Promise.all([
-    llmConfigured() ? fetchSection(topApps.map((a) => a.app_key), fetchAppLlmDaily) : Promise.resolve(topApps.map(() => null)),
-    llmUserConfigured() ? fetchSection(topUsers.map((u) => u.email), fetchUserLlmDaily) : Promise.resolve(topUsers.map(() => null)),
+    llmConfigured() && !appLlmDown ? fetchSection(topApps.map((a) => a.app_key), fetchAppLlmDaily) : Promise.resolve(topApps.map(() => null)),
+    llmUserConfigured() && !userLlmDown ? fetchSection(topUsers.map((u) => u.email), fetchUserLlmDaily) : Promise.resolve(topUsers.map(() => null)),
   ]);
   const appByDay = appLlm.map(llmByDay);
   const userByDay = userLlm.map(llmByDay);

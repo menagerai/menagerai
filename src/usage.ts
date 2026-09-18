@@ -174,11 +174,14 @@ export async function topAppsByActivity(
 }
 
 // Most active users over the window (Σ active app-days), with emails joined in.
-// `boost` (optional) folds LLM usage into the ranking, same as for apps.
+// `boost` (optional) folds LLM usage into the ranking, keyed by portal EMAIL — the
+// LiteLLM end_user/user field the totals are keyed by, not the user id — so emails
+// are joined BEFORE ranking (which also drops deleted users up front rather than
+// after the cut).
 export async function topUsersByActivity(
   sinceDay: string,
   limit: number,
-  boost?: (key: string) => number,
+  boost?: (email: string) => number,
 ): Promise<UserActivity[]> {
   const rows = await col.usageDaily
     .aggregate<{ _id: ObjectId; active: number }>([
@@ -186,15 +189,19 @@ export async function topUsersByActivity(
       { $group: { _id: '$user_id', active: { $sum: 1 } } },
     ])
     .toArray();
-  const top = rankByActivity(rows.map((r) => ({ key: String(r._id), active: r.active })), limit, boost);
-  const users = await col.users.find({ _id: { $in: top.map((t) => toOid(t.key)) } }).project({ email: 1, name: 1 }).toArray();
+  const users = await col.users.find({ _id: { $in: rows.map((r) => r._id) } }).project({ email: 1, name: 1 }).toArray();
   const byId = new Map(users.map((u) => [String(u._id), u as { email: string; name?: string }]));
-  return top
-    .filter((t) => byId.has(t.key)) // drop deleted users
-    .map((t) => {
-      const u = byId.get(t.key) as { email: string; name?: string };
-      return { user_id: t.key, email: u.email, name: u.name || undefined, active: t.active };
-    });
+  const candidates = rows.flatMap((r) => {
+    const u = byId.get(String(r._id));
+    return u ? [{ key: String(r._id), active: r.active, email: u.email, name: u.name || undefined }] : []; // drop deleted
+  });
+  const byKey = new Map(candidates.map((c) => [c.key, c]));
+  const boostById = boost ? (id: string): number => boost(byKey.get(id)?.email ?? '') : undefined;
+  const top = rankByActivity(candidates.map((c) => ({ key: c.key, active: c.active })), limit, boostById);
+  return top.map((t) => {
+    const c = byKey.get(t.key) as { email: string; name?: string; active: number };
+    return { user_id: t.key, email: c.email, name: c.name, active: c.active };
+  });
 }
 
 // ---- Read path: heatmap (per-day intensity) ----

@@ -14,7 +14,7 @@ vi.mock('../src/db', () => ({
 
 import {
   buildHeatmap, compositeBoost, dailyCountsForUser, heatmapSinceDay, logNorm, recordUsage,
-  topAppsByActivity, topAppsForUser, topUsersForApp, usageDay,
+  topAppsByActivity, topUsersByActivity, topAppsForUser, topUsersForApp, usageDay,
 } from '../src/usage';
 
 const cursor = (rows: unknown[]) => ({ toArray: async () => rows });
@@ -288,5 +288,38 @@ describe('topAppsByActivity — composite ranking', () => {
     expect(r[0].app_key).toBe('a');
     expect(r.map((x) => x.app_key)).toContain('b');
     expect(r).toHaveLength(2);
+  });
+});
+
+describe('topUsersByActivity — composite ranking keys the boost by email', () => {
+  const id1 = new ObjectId();
+  const id2 = new ObjectId();
+  const setup = () => {
+    h.aggregate.mockReturnValue(cursor([
+      { _id: id1, active: 30 }, // most active
+      { _id: id2, active: 10 },
+    ]));
+    h.usersFind.mockReturnValue({
+      project: () => cursor([{ _id: id1, email: 'big@x.com' }, { _id: id2, email: 'small@x.com' }]),
+    });
+  };
+
+  it('ranks by activity when no boost is given', async () => {
+    setup();
+    const r = await topUsersByActivity('2026-01-01', 2);
+    expect(r.map((x) => x.email)).toEqual(['big@x.com', 'small@x.com']);
+  });
+
+  it('invokes the boost with the portal email (not the user id) and can promote', async () => {
+    setup();
+    const seen: string[] = [];
+    // Boost keyed by EMAIL — the regression this guards: a user-id key would miss.
+    const boost = (email: string): number => {
+      seen.push(email);
+      return email === 'small@x.com' ? 1 : 0;
+    };
+    const r = await topUsersByActivity('2026-01-01', 2, boost);
+    expect(seen.sort()).toEqual(['big@x.com', 'small@x.com']); // called with emails
+    expect(r[0].email).toBe('small@x.com'); // lifted above the more-active user
   });
 });
