@@ -261,7 +261,9 @@ pure, config-free `compositeBoost(...)` (in `src/usage.ts`, unit-tested directly
 User totals are keyed by portal **email** (the `end_user`/`user` field), so each user
 candidate carries its email as its LLM key. The route wires `config.llmBoostMax` /
 `config.llmBoostCostShare`; the dashboard intro switches to `dashboard.introComposite`
-when a section has LLM data.
+when the ranking actually used LLM data — i.e. a displayed top entity carries LLM
+totals — rather than when the (heatmap-window) overlay has data, since the two windows
+can differ when `USAGE_HEATMAP_DAYS` is narrower than the rank window.
 
 ---
 

@@ -145,6 +145,13 @@ adminRouter.get('/dashboard', async (req, res) => {
     topAppsByActivity(rankSince, limit, rankBoost(appTotals)),
     topUsersByActivity(rankSince, limit, rankBoost(userTotals)),
   ]);
+  // The intro copy reflects whether the RANKING used LLM data (rank window), which
+  // is not the same as the per-card overlay having data (heatmap window): when
+  // USAGE_HEATMAP_DAYS is narrower than the rank window, LLM usage can shape the
+  // order while the overlay shows none. True iff a displayed entity carries LLM
+  // totals, so the boost actually bore on what's on screen.
+  const compositeRanking =
+    topApps.some((a) => appTotals.has(a.app_key)) || topUsers.some((u) => userTotals.has(u.email));
   // Each card carries the full-window heatmap and an activity score over both
   // windows: `active` is Σ DAU over the short rank window; `scoreFull` is Σ DAU
   // over the heatmap window (the same days the heatmap draws). sumCounts folds
@@ -222,7 +229,7 @@ adminRouter.get('/dashboard', async (req, res) => {
   }));
   res.render('admin/dashboard', {
     user: req.user, isAdmin: true,
-    appCards, userCards, appLlmOn, userLlmOn, llmWarning,
+    appCards, userCards, appLlmOn, userLlmOn, compositeRanking, llmWarning,
     heatmapDays: config.usageHeatmapDays, rankDays: DASHBOARD_RANK_DAYS, topN: limit,
   });
 });

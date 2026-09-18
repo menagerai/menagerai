@@ -17,7 +17,7 @@
 <%- include('../partials/head', { title: t('dashboard.title'), user, isAdmin, wide: true, wrapStyle: '--card-w:' + _cardW + 'px' }) %>
 
 <div class="page-head"><h1><%= t('dashboard.title') %></h1></div>
-<% var _composite = _appLlmOn || _userLlmOn; %>
+<% var _composite = (typeof compositeRanking !== 'undefined' && compositeRanking); %>
 <p class="muted"><%= t(_composite ? 'dashboard.introComposite' : 'dashboard.intro', { n: topN, days: rankDays }) %></p>
 <% if (_llmWarning) { %><p class="muted">⚠ <%= t('llm.timeout', { provider: 'LiteLLM' }) %></p><% } %>
 
