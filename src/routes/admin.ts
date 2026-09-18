@@ -174,11 +174,13 @@ adminRouter.get('/dashboard', async (req, res) => {
   // LLM overlay (optional). One shared proxy fetch serves the whole section (the
   // module caches by window); per-card failures are isolated via allSettled and
   // set an inline warning while other cards still show their data. No redirect.
+  // Bucket over heatSince but load from loadSince, so this reuses the ranking's
+  // cached pull even when USAGE_HEATMAP_DAYS is narrower than the rank window.
   const fetchSection = async (
     keys: string[],
-    fn: (k: string, since: string) => Promise<LlmDailyRow[] | null>,
+    fn: (k: string, since: string, loadSince: string) => Promise<LlmDailyRow[] | null>,
   ): Promise<(LlmDailyRow[] | null)[]> => {
-    const settled = await Promise.allSettled(keys.map((k) => fn(k, heatSince)));
+    const settled = await Promise.allSettled(keys.map((k) => fn(k, heatSince, loadSince)));
     return settled.map((s) => {
       if (s.status === 'fulfilled') return s.value;
       llmWarning = true;

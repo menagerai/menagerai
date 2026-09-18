@@ -111,6 +111,24 @@ describe('fetchAppLlmDaily', () => {
     expect(await fetchAppLlmDaily('app1', '2026-09-01')).toEqual([{ day: '2026-09-11', spend: 1, totalTokens: 10 }]);
   });
 
+  it('loads from a wider loadSinceDay but still buckets to sinceDay', async () => {
+    const fetchFn = installFetch();
+    // Load a wide window, bucket only from 2026-09-11 onward (drops the 09-10 rows).
+    const rows = await fetchAppLlmDaily('vividimage', '2026-09-11', '2026-08-01');
+    expect(rows).toEqual([{ day: '2026-09-11', spend: 2.0, totalTokens: 200 }]);
+    const spendUrl = fetchFn.mock.calls.map((c) => String(c[0])).find((u) => u.includes('/spend/logs/v2'))!;
+    expect(new URL(spendUrl).searchParams.get('start_date')).toBe('2026-07-31'); // loadSinceDay - 1
+  });
+
+  it('shares the ranking totals pull when the overlay loads from the same wide window', async () => {
+    const fetchFn = installFetch();
+    // The dashboard pattern when USAGE_HEATMAP_DAYS < rank window: totals load wide,
+    // then the overlay loads from that same wide date — one pull, not two.
+    await fetchAllAppLlmTotals('2026-08-01', SINCE);
+    await fetchAppLlmDaily('vividimage', '2026-09-05', '2026-08-01');
+    expect(fetchFn.mock.calls.length).toBe(3); // 2 spend pages + 1 key/list, shared
+  });
+
   it('returns null when no virtual key is aliased to the app', async () => {
     installFetch();
     expect(await fetchAppLlmDaily('does-not-exist', SINCE)).toBeNull();

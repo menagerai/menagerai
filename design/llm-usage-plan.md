@@ -248,9 +248,12 @@ score = logNorm(activity, activityPeak)                 # baseline, unchanged or
   identities (aliases/customers that aren't portal entities) can't inflate them.
 - **No extra proxy traffic.** Per-entity spend/token totals come from the same cached
   `/spend/logs/v2` pull the winner heatmaps already need (`fetchAllAppLlmTotals` /
-  `fetchAllUserLlmTotals` fold the cached rows by alias / `end_user`). If that pull
-  fails, the section's overlay fetch is skipped too (its cached rejection was already
-  evicted) so a down proxy costs one timeout, not two, and degrades to activity-only.
+  `fetchAllUserLlmTotals` fold the cached rows by alias / `end_user`). Everything loads
+  from the wider of the rank/heatmap windows (`loadSince`) — the overlay loaders take a
+  `loadSinceDay` separate from their bucketing cutoff — so even when
+  `USAGE_HEATMAP_DAYS` is narrower than the rank window it stays one shared pull. If
+  that pull fails, the section's overlay fetch is skipped too (its cached rejection was
+  already evicted) so a down proxy costs one timeout, not two.
 
 `topAppsByActivity` / `topUsersByActivity` take an optional `RankBoost` (the section
 totals + weights); they compute the peaks over their own candidates and apply the
