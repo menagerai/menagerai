@@ -7,8 +7,8 @@ import { decide } from '../decide';
 import { requireAdmin } from '../middleware/auth';
 import { config } from '../config';
 import { managementConfigured } from '../idp/config';
-import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS } from '../usage';
-import { fetchAppLlmDaily, fetchUserLlmDaily, sumWindow, llmConfigured, llmUserConfigured, LlmDailyRow } from '../llm';
+import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS, compositeBoost } from '../usage';
+import { fetchAppLlmDaily, fetchUserLlmDaily, fetchAllAppLlmTotals, fetchAllUserLlmTotals, sumWindow, llmConfigured, llmUserConfigured, LlmDailyRow } from '../llm';
 import { decodeCsvBuffer, parseCsvRows, parseRoster } from '../admin-logic';
 import { ApiError, NotFoundError } from '../services/errors';
 import { isSuperadmin, PROTECTED_ROLE } from '../services/common';
@@ -77,6 +77,27 @@ function llmScore(rows: LlmDailyRow[] | null, recentSince: string, fullSince: st
   const full = sumWindow(rows, fullSince);
   return { spendRecent: recent.spend, tokensRecent: recent.tokens, spendFull: full.spend, tokensFull: full.tokens };
 }
+type LlmTotals = Map<string, { spend: number; tokens: number }>;
+// Build the per-key ranking boost from a section's LLM totals. The boost is
+// log-normalised spend and tokens (each anchored to the section peak), weighted
+// llmBoostCostShare toward cost, scaled by llmBoostMax. Keys with no LLM usage get
+// 0 (never demoted); undefined when the section has no LLM data at all, so ranking
+// collapses to activity-only. See design/llm-usage-plan.md.
+function llmBoostFn(totals: LlmTotals): ((key: string) => number) | undefined {
+  if (totals.size === 0) return undefined;
+  let spendPeak = 0;
+  let tokenPeak = 0;
+  for (const v of totals.values()) {
+    if (v.spend > spendPeak) spendPeak = v.spend;
+    if (v.tokens > tokenPeak) tokenPeak = v.tokens;
+  }
+  return (key: string): number => {
+    const v = totals.get(key);
+    if (!v) return 0;
+    return compositeBoost(v.spend, v.tokens, spendPeak, tokenPeak, config.llmBoostMax, config.llmBoostCostShare);
+  };
+}
+
 // Section peaks that anchor the shared bar ramp (spend in cents, tokens raw) —
 // the LLM analogue of the green heatmap's per-section maxCount.
 function llmPeaks(maps: (LlmByDay | null)[]): { spendCents: number; tokens: number } {
@@ -105,10 +126,30 @@ adminRouter.get('/dashboard', async (req, res) => {
   const now = Date.now();
   const rankSince = heatmapSinceDay(now, DASHBOARD_RANK_DAYS);
   const heatSince = heatmapSinceDay(now, config.usageHeatmapDays);
+  // Rows are pulled/cached from the wider of the two windows so the composite
+  // ranking (rank window) and the winner heatmaps (heatmap window) share one pull.
+  const loadSince = heatSince < rankSince ? heatSince : rankSince;
   const limit = config.dashboardTopLimit;
+
+  // Composite ranking: activity + a bounded LLM boost, scored across ALL entities
+  // before cutting to the top N. LLM totals reuse the cached row pull (no extra
+  // proxy traffic); a proxy failure degrades to activity-only ranking + a warning.
+  let llmWarning = false;
+  const safeTotals = async (p: Promise<LlmTotals>): Promise<LlmTotals> => {
+    try {
+      return await p;
+    } catch {
+      llmWarning = true;
+      return new Map();
+    }
+  };
+  const [appTotals, userTotals] = await Promise.all([
+    safeTotals(fetchAllAppLlmTotals(loadSince, rankSince)),
+    safeTotals(fetchAllUserLlmTotals(loadSince, rankSince)),
+  ]);
   const [topApps, topUsers] = await Promise.all([
-    topAppsByActivity(rankSince, limit),
-    topUsersByActivity(rankSince, limit),
+    topAppsByActivity(rankSince, limit, llmBoostFn(appTotals)),
+    topUsersByActivity(rankSince, limit, llmBoostFn(userTotals)),
   ]);
   // Each card carries the full-window heatmap and an activity score over both
   // windows: `active` is Σ DAU over the short rank window; `scoreFull` is Σ DAU
@@ -139,7 +180,6 @@ adminRouter.get('/dashboard', async (req, res) => {
   // LLM overlay (optional). One shared proxy fetch serves the whole section (the
   // module caches by window); per-card failures are isolated via allSettled and
   // set an inline warning while other cards still show their data. No redirect.
-  let llmWarning = false;
   const fetchSection = async (
     keys: string[],
     fn: (k: string, since: string) => Promise<LlmDailyRow[] | null>,

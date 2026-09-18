@@ -1,18 +1,20 @@
 import { ObjectId } from 'mongodb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const h = vi.hoisted(() => ({ updateOne: vi.fn(), aggregate: vi.fn(), usersFind: vi.fn() }));
+const h = vi.hoisted(() => ({ updateOne: vi.fn(), aggregate: vi.fn(), usersFind: vi.fn(), appsFind: vi.fn() }));
 
 vi.mock('../src/config', () => ({ config: { timezone: 'Asia/Shanghai', usageTopLimit: 10, usageHeatmapDays: 365 } }));
 vi.mock('../src/db', () => ({
   col: {
     usageDaily: { updateOne: h.updateOne, aggregate: h.aggregate },
     users: { find: h.usersFind },
+    apps: { find: h.appsFind },
   },
 }));
 
 import {
-  buildHeatmap, dailyCountsForUser, heatmapSinceDay, recordUsage, topAppsForUser, topUsersForApp, usageDay,
+  buildHeatmap, compositeBoost, dailyCountsForUser, heatmapSinceDay, logNorm, recordUsage,
+  topAppsByActivity, topAppsForUser, topUsersForApp, usageDay,
 } from '../src/usage';
 
 const cursor = (rows: unknown[]) => ({ toArray: async () => rows });
@@ -21,6 +23,7 @@ beforeEach(() => {
   h.updateOne.mockReset();
   h.aggregate.mockReset();
   h.usersFind.mockReset();
+  h.appsFind.mockReset();
   h.updateOne.mockResolvedValue({});
 });
 
@@ -210,5 +213,80 @@ describe('usage reads', () => {
     const m = await dailyCountsForUser(new ObjectId(), '2026-01-01');
     expect(m.get('2026-06-22')).toBe(2);
     expect(h.aggregate.mock.calls[0][0][0].$match.day).toEqual({ $gte: '2026-01-01' });
+  });
+});
+
+describe('logNorm — log ramp anchored at the section peak', () => {
+  it('maps the peak to 1 and non-positive values to 0', () => {
+    expect(logNorm(30, 30)).toBe(1);
+    expect(logNorm(0, 30)).toBe(0);
+    expect(logNorm(-5, 30)).toBe(0);
+  });
+  it('is monotonic between 1 and the peak', () => {
+    expect(logNorm(10, 30)).toBeGreaterThan(0);
+    expect(logNorm(10, 30)).toBeLessThan(logNorm(20, 30));
+    expect(logNorm(20, 30)).toBeLessThan(1);
+  });
+  it('floors sub-1 values (e.g. sub-$1 spend) at 0 and copes with a degenerate peak', () => {
+    expect(logNorm(0.5, 100)).toBe(0);
+    expect(logNorm(1, 1)).toBe(1); // peak <= 1
+  });
+});
+
+describe('compositeBoost — the LLM ranking boost', () => {
+  it('is 0 when the entity has no spend or tokens (never demoted)', () => {
+    expect(compositeBoost(0, 0, 100, 1e9, 0.5, 0.8)).toBe(0);
+  });
+  it('weights cost over tokens at equal normalised magnitude', () => {
+    const costHeavy = compositeBoost(100, 0, 100, 1e9, 0.5, 0.8); // spend at peak, no tokens
+    const tokenHeavy = compositeBoost(0, 1e9, 100, 1e9, 0.5, 0.8); // tokens at peak, no spend
+    expect(costHeavy).toBeGreaterThan(tokenHeavy);
+    expect(costHeavy).toBeCloseTo(0.5 * 0.8, 10);
+    expect(tokenHeavy).toBeCloseTo(0.5 * 0.2, 10);
+  });
+  it('is bounded by boostMax when both signals peak, and scales with it', () => {
+    expect(compositeBoost(100, 1e9, 100, 1e9, 0.5, 0.8)).toBeCloseTo(0.5, 10);
+    expect(compositeBoost(100, 1e9, 100, 1e9, 1.0, 0.8)).toBeCloseTo(1.0, 10);
+  });
+});
+
+describe('topAppsByActivity — composite ranking', () => {
+  // Names for the survivors; the join tolerates extra rows, so return all three.
+  const withNames = () => {
+    h.appsFind.mockReturnValue({
+      project: () => cursor([{ key: 'a', name: 'A' }, { key: 'b', name: 'B' }, { key: 'c', name: 'C' }]),
+    });
+  };
+  const rows = () => cursor([
+    { _id: 'a', active: 10 },
+    { _id: 'b', active: 30 },
+    { _id: 'c', active: 20 },
+  ]);
+
+  it('ranks by activity descending when no boost is given, dropping sort/limit into JS', async () => {
+    h.aggregate.mockReturnValue(rows());
+    withNames();
+    const r = await topAppsByActivity('2026-01-01', 3);
+    expect(r.map((x) => x.app_key)).toEqual(['b', 'c', 'a']);
+    // ranks across all entities — the aggregate no longer sorts/limits in the store
+    const pipeline = h.aggregate.mock.calls[0][0];
+    expect(pipeline.some((s: Record<string, unknown>) => s.$sort || s.$limit != null)).toBe(false);
+  });
+
+  it('a zero boost leaves the activity order unchanged', async () => {
+    h.aggregate.mockReturnValue(rows());
+    withNames();
+    const r = await topAppsByActivity('2026-01-01', 3, () => 0);
+    expect(r.map((x) => x.app_key)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('a boost can promote a lower-activity app into (and up) the top N', async () => {
+    h.aggregate.mockReturnValue(rows());
+    withNames();
+    // 'a' has the least activity but a large boost — it should surface into top 2.
+    const r = await topAppsByActivity('2026-01-01', 2, (k) => (k === 'a' ? 1 : 0));
+    expect(r[0].app_key).toBe('a');
+    expect(r.map((x) => x.app_key)).toContain('b');
+    expect(r).toHaveLength(2);
   });
 });
