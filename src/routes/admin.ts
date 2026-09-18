@@ -7,7 +7,7 @@ import { decide } from '../decide';
 import { requireAdmin } from '../middleware/auth';
 import { config } from '../config';
 import { managementConfigured } from '../idp/config';
-import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS, compositeBoost } from '../usage';
+import { buildHeatmap, dailyCountsForApp, dailyCountsForUser, heatmapSinceDay, topAppsForUser, topUsersForApp, topAppsByActivity, topUsersByActivity, DASHBOARD_RANK_DAYS, RankBoost } from '../usage';
 import { fetchAppLlmDaily, fetchUserLlmDaily, fetchAllAppLlmTotals, fetchAllUserLlmTotals, sumWindow, llmConfigured, llmUserConfigured, LlmDailyRow } from '../llm';
 import { decodeCsvBuffer, parseCsvRows, parseRoster } from '../admin-logic';
 import { ApiError, NotFoundError } from '../services/errors';
@@ -78,24 +78,12 @@ function llmScore(rows: LlmDailyRow[] | null, recentSince: string, fullSince: st
   return { spendRecent: recent.spend, tokensRecent: recent.tokens, spendFull: full.spend, tokensFull: full.tokens };
 }
 type LlmTotals = Map<string, { spend: number; tokens: number }>;
-// Build the per-key ranking boost from a section's LLM totals. The boost is
-// log-normalised spend and tokens (each anchored to the section peak), weighted
-// llmBoostCostShare toward cost, scaled by llmBoostMax. Keys with no LLM usage get
-// 0 (never demoted); undefined when the section has no LLM data at all, so ranking
-// collapses to activity-only. See design/llm-usage-plan.md.
-function llmBoostFn(totals: LlmTotals): ((key: string) => number) | undefined {
+// Wrap a section's LLM totals as a ranking boost (peaks + weighting are applied by
+// rankByActivity, over ranking candidates only). undefined when the section has no
+// LLM data at all, so ranking collapses to activity-only. See design/llm-usage-plan.md.
+function rankBoost(totals: LlmTotals): RankBoost | undefined {
   if (totals.size === 0) return undefined;
-  let spendPeak = 0;
-  let tokenPeak = 0;
-  for (const v of totals.values()) {
-    if (v.spend > spendPeak) spendPeak = v.spend;
-    if (v.tokens > tokenPeak) tokenPeak = v.tokens;
-  }
-  return (key: string): number => {
-    const v = totals.get(key);
-    if (!v) return 0;
-    return compositeBoost(v.spend, v.tokens, spendPeak, tokenPeak, config.llmBoostMax, config.llmBoostCostShare);
-  };
+  return { totals, boostMax: config.llmBoostMax, costShare: config.llmBoostCostShare };
 }
 
 // Section peaks that anchor the shared bar ramp (spend in cents, tokens raw) —
@@ -154,8 +142,8 @@ adminRouter.get('/dashboard', async (req, res) => {
     safeTotals(fetchAllUserLlmTotals(loadSince, rankSince), () => { userLlmDown = true; }),
   ]);
   const [topApps, topUsers] = await Promise.all([
-    topAppsByActivity(rankSince, limit, llmBoostFn(appTotals)),
-    topUsersByActivity(rankSince, limit, llmBoostFn(userTotals)),
+    topAppsByActivity(rankSince, limit, rankBoost(appTotals)),
+    topUsersByActivity(rankSince, limit, rankBoost(userTotals)),
   ]);
   // Each card carries the full-window heatmap and an activity score over both
   // windows: `active` is Σ DAU over the short rank window; `scoreFull` is Σ DAU

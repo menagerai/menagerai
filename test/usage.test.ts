@@ -248,6 +248,15 @@ describe('compositeBoost — the LLM ranking boost', () => {
     expect(compositeBoost(100, 1e9, 100, 1e9, 0.5, 0.8)).toBeCloseTo(0.5, 10);
     expect(compositeBoost(100, 1e9, 100, 1e9, 1.0, 0.8)).toBeCloseTo(1.0, 10);
   });
+  it('normalises sub-dollar spend in cents so it keeps its ordering', () => {
+    // Peak $0.99: $0.01 and $0.99 must differ (raw-dollar logNorm collapsed both).
+    const lo = compositeBoost(0.01, 0, 0.99, 100, 0.5, 1); // costShare 1 => pure spend
+    const hi = compositeBoost(0.99, 0, 0.99, 100, 0.5, 1);
+    const mid = compositeBoost(0.5, 0, 0.99, 100, 0.5, 1);
+    expect(hi).toBeGreaterThan(mid);
+    expect(mid).toBeGreaterThan(lo);
+    expect(hi).toBeCloseTo(0.5, 10); // spend at peak => full cost boost
+  });
 });
 
 describe('topAppsByActivity — composite ranking', () => {
@@ -273,21 +282,48 @@ describe('topAppsByActivity — composite ranking', () => {
     expect(pipeline.some((s: Record<string, unknown>) => s.$sort || s.$limit != null)).toBe(false);
   });
 
-  it('a zero boost leaves the activity order unchanged', async () => {
+  it('equal LLM across the section leaves the activity order unchanged', async () => {
     h.aggregate.mockReturnValue(rows());
     withNames();
-    const r = await topAppsByActivity('2026-01-01', 3, () => 0);
+    const equal = { spend: 5, tokens: 5 };
+    const boost = { totals: new Map([['a', equal], ['b', equal], ['c', equal]]), boostMax: 1, costShare: 0.8 };
+    const r = await topAppsByActivity('2026-01-01', 3, boost);
     expect(r.map((x) => x.app_key)).toEqual(['b', 'c', 'a']);
   });
 
   it('a boost can promote a lower-activity app into (and up) the top N', async () => {
     h.aggregate.mockReturnValue(rows());
     withNames();
-    // 'a' has the least activity but a large boost — it should surface into top 2.
-    const r = await topAppsByActivity('2026-01-01', 2, (k) => (k === 'a' ? 1 : 0));
+    // 'a' has the least activity but by far the most LLM usage — surfaces into top 2.
+    const boost = {
+      totals: new Map([['a', { spend: 100, tokens: 1000 }], ['b', { spend: 0.01, tokens: 1 }], ['c', { spend: 0.01, tokens: 1 }]]),
+      boostMax: 1,
+      costShare: 0.8,
+    };
+    const r = await topAppsByActivity('2026-01-01', 2, boost);
     expect(r[0].app_key).toBe('a');
     expect(r.map((x) => x.app_key)).toContain('b');
     expect(r).toHaveLength(2);
+  });
+
+  it('ignores proxy totals for non-candidate keys when anchoring the boost peak', async () => {
+    h.aggregate.mockReturnValue(rows());
+    withNames();
+    // An external identity 'zzz' (not a ranking candidate) has huge usage. If it set
+    // the peak, 'a' below would barely move; because peaks are candidate-only, 'a'
+    // (the top candidate spender) still gets the full boost and leads.
+    const boost = {
+      totals: new Map([
+        ['a', { spend: 1, tokens: 10 }],
+        ['zzz', { spend: 1e6, tokens: 1e9 }], // external, never ranked
+      ]),
+      boostMax: 1,
+      costShare: 0.8,
+    };
+    // If 'zzz' set the peak, 'a's boost would fall below the activity gap to 'b'
+    // (30 vs 10) and 'b' would lead; candidate-only peaks keep 'a' first.
+    const r = await topAppsByActivity('2026-01-01', 3, boost);
+    expect(r[0].app_key).toBe('a');
   });
 });
 
@@ -310,16 +346,19 @@ describe('topUsersByActivity — composite ranking keys the boost by email', () 
     expect(r.map((x) => x.email)).toEqual(['big@x.com', 'small@x.com']);
   });
 
-  it('invokes the boost with the portal email (not the user id) and can promote', async () => {
+  it('keys the boost by portal email (not the user id) and can promote', async () => {
     setup();
-    const seen: string[] = [];
-    // Boost keyed by EMAIL — the regression this guards: a user-id key would miss.
-    const boost = (email: string): number => {
-      seen.push(email);
-      return email === 'small@x.com' ? 1 : 0;
+    // Totals keyed by EMAIL — the regression this guards: a user-id-keyed lookup
+    // would miss entirely, leaving the more-active 'big' on top.
+    const boost = {
+      totals: new Map([
+        ['small@x.com', { spend: 100, tokens: 1000 }],
+        ['big@x.com', { spend: 0.01, tokens: 1 }],
+      ]),
+      boostMax: 1,
+      costShare: 0.8,
     };
     const r = await topUsersByActivity('2026-01-01', 2, boost);
-    expect(seen.sort()).toEqual(['big@x.com', 'small@x.com']); // called with emails
     expect(r[0].email).toBe('small@x.com'); // lifted above the more-active user
   });
 });

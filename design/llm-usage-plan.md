@@ -230,8 +230,8 @@ climb *into* the list, not merely reorder within it):
 
 ```
 score = logNorm(activity, activityPeak)                 # baseline, unchanged order
-      + LLM_BOOST_MAX · ( COST_SHARE · logNorm(spend,  spendPeak)
-                        + (1−COST_SHARE) · logNorm(tokens, tokenPeak) )
+      + LLM_BOOST_MAX · ( COST_SHARE · logNorm(spendCents, spendPeakCents)
+                        + (1−COST_SHARE) · logNorm(tokens,     tokenPeak) )
 ```
 
 - **Activity stays the baseline.** `logNorm` is monotonic, so with equal (or no) LLM
@@ -240,18 +240,25 @@ score = logNorm(activity, activityPeak)                 # baseline, unchanged or
 - **Never a penalty.** Entities with no LLM usage get boost 0; only others are lifted.
 - **Cost over tokens.** `COST_SHARE = LLM_BOOST_COST_SHARE` (default 0.8) weights spend
   ~4× tokens; the shared `logNorm` keeps billion-token counts from running away.
-- **Peak-relative.** All three signals normalise against the section peak (the busiest
-  entity), so the boost is self-scaling — no absolute-dollar constants.
+- **Spend in cents.** Spend is normalised in integer cents (like the heatmap), so
+  sub-dollar totals keep their ordering instead of collapsing at the ramp's low end.
+- **Peak-relative, candidate-only.** All three signals normalise against the section
+  peak (the busiest entity), so the boost is self-scaling — no absolute-dollar
+  constants. Peaks are computed **only over ranking candidates**, so unrelated proxy
+  identities (aliases/customers that aren't portal entities) can't inflate them.
 - **No extra proxy traffic.** Per-entity spend/token totals come from the same cached
   `/spend/logs/v2` pull the winner heatmaps already need (`fetchAllAppLlmTotals` /
-  `fetchAllUserLlmTotals` fold the cached rows by alias / `end_user`). A proxy failure
-  degrades to activity-only ranking with the same inline warning.
+  `fetchAllUserLlmTotals` fold the cached rows by alias / `end_user`). If that pull
+  fails, the section's overlay fetch is skipped too (its cached rejection was already
+  evicted) so a down proxy costs one timeout, not two, and degrades to activity-only.
 
-`topAppsByActivity` / `topUsersByActivity` take an optional `boost(key) => number`;
-the pure, config-free `compositeBoost(...)` (in `src/usage.ts`) does the math and is
-unit-tested directly. The route wires `config.llmBoostMax` / `config.llmBoostCostShare`
-and the section peaks around it. The dashboard intro switches to
-`dashboard.introComposite` when a section has LLM data.
+`topAppsByActivity` / `topUsersByActivity` take an optional `RankBoost` (the section
+totals + weights); they compute the peaks over their own candidates and apply the
+pure, config-free `compositeBoost(...)` (in `src/usage.ts`, unit-tested directly).
+User totals are keyed by portal **email** (the `end_user`/`user` field), so each user
+candidate carries its email as its LLM key. The route wires `config.llmBoostMax` /
+`config.llmBoostCostShare`; the dashboard intro switches to `dashboard.introComposite`
+when a section has LLM data.
 
 ---
 

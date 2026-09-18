@@ -50,7 +50,6 @@ vi.mock('../src/usage', () => ({
   topUsersForApp: vi.fn(async () => []),
   topAppsByActivity: vi.fn(async () => []),
   topUsersByActivity: vi.fn(async () => []),
-  compositeBoost: vi.fn(() => 0),
   DASHBOARD_RANK_DAYS: 30,
   dailyCountsForUser: vi.fn(async () => new Map()),
   dailyCountsForApp: vi.fn(async () => new Map()),
