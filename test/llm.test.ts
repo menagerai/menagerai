@@ -129,6 +129,13 @@ describe('fetchAppLlmDaily', () => {
     expect(fetchFn.mock.calls.length).toBe(3); // 2 spend pages + 1 key/list, shared
   });
 
+  it('returns null when matched rows all predate sinceDay after bucketing', async () => {
+    installFetch();
+    // vividimage (HASH_A) has rows on 09-10/09-11 only; a later cutoff buckets to
+    // empty. Must be null (activity-only), not [] (which would enable the overlay).
+    expect(await fetchAppLlmDaily('vividimage', '2026-09-20', '2026-08-01')).toBeNull();
+  });
+
   it('returns null when no virtual key is aliased to the app', async () => {
     installFetch();
     expect(await fetchAppLlmDaily('does-not-exist', SINCE)).toBeNull();

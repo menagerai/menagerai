@@ -153,7 +153,8 @@ export async function fetchAppLlmDaily(
   if (!llmConfigured()) return null;
   const [rows, aliases] = await Promise.all([loadRows(loadSinceDay), loadAliasMap()]);
   const mine = rows.filter((r) => aliases.get(r.api_key) === appKey);
-  return mine.length ? bucket(mine, sinceDay) : null;
+  const daily = bucket(mine, sinceDay);
+  return daily.length ? daily : null; // empty after bucketing (all rows predate sinceDay) => activity-only
 }
 
 // Per-user daily usage. null = per-user not configured, or no rows match this
@@ -167,7 +168,8 @@ export async function fetchUserLlmDaily(
   const useEndUser = config.llmProxyUserKey === 'end_user';
   const rows = await loadRows(loadSinceDay);
   const mine = rows.filter((r) => (useEndUser ? r.end_user : r.user) === userEmail);
-  return mine.length ? bucket(mine, sinceDay) : null;
+  const daily = bucket(mine, sinceDay);
+  return daily.length ? daily : null; // empty after bucketing (all rows predate sinceDay) => activity-only
 }
 
 // Fold one row into a running per-key total, applying the same tz-day window
