@@ -15,6 +15,11 @@ function int(name: string, fallback: number): number {
   return n;
 }
 
+// A fraction in [0,1]; out-of-range values are clamped rather than rejected.
+function frac(name: string, fallback: number): number {
+  return Math.max(0, Math.min(1, int(name, fallback)));
+}
+
 // The set of hostnames this single portal answers on (interchangeable aliases),
 // used to validate the request Host before building redirects (host-injection
 // defense). Sourced from — and auto-tracking — the deployment's own domains:
@@ -137,6 +142,15 @@ export const config = {
   llmProxyUserKey: opt('LLM_PROXY_USER_KEY'),
   llmCacheTtlMs: int('LLM_PROXY_CACHE_TTL_MS', 60_000),
   llmMaxPages: int('LLM_PROXY_MAX_PAGES', 50),
+  // Dashboard composite ranking: on top of activity, LLM spend and tokens add a
+  // bounded boost so heavier LLM users rank higher without burying activity. The
+  // boost is 0 for entities with no LLM use (and when the feature is off), so they
+  // are never pushed down — only others are lifted. llmBoostMax caps the boost at
+  // this fraction of the activity scale (0.5 => up to +50%); llmBoostCostShare
+  // splits it between spend (this share) and tokens (the rest). All three signals
+  // are log-normalised against the section peak. See design/llm-usage-plan.md.
+  llmBoostMax: frac('LLM_BOOST_MAX', 0.5),
+  llmBoostCostShare: frac('LLM_BOOST_COST_SHARE', 0.8),
 };
 
 // The LLM feature is off unless a supported vendor and its connection details are

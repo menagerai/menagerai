@@ -16,7 +16,10 @@ const cfg = vi.hoisted(() => ({
 vi.mock('../src/config', () => cfg);
 vi.mock('../src/db', () => ({ col: {} })); // usage.ts (imported transitively) pulls in db
 
-import { fetchAppLlmDaily, fetchUserLlmDaily, sumWindow, clearLlmCache, LlmProxyError } from '../src/llm';
+import {
+  fetchAppLlmDaily, fetchUserLlmDaily, fetchAllAppLlmTotals, fetchAllUserLlmTotals,
+  sumWindow, clearLlmCache, LlmProxyError,
+} from '../src/llm';
 
 const SINCE = '2026-09-01';
 
@@ -108,6 +111,31 @@ describe('fetchAppLlmDaily', () => {
     expect(await fetchAppLlmDaily('app1', '2026-09-01')).toEqual([{ day: '2026-09-11', spend: 1, totalTokens: 10 }]);
   });
 
+  it('loads from a wider loadSinceDay but still buckets to sinceDay', async () => {
+    const fetchFn = installFetch();
+    // Load a wide window, bucket only from 2026-09-11 onward (drops the 09-10 rows).
+    const rows = await fetchAppLlmDaily('vividimage', '2026-09-11', '2026-08-01');
+    expect(rows).toEqual([{ day: '2026-09-11', spend: 2.0, totalTokens: 200 }]);
+    const spendUrl = fetchFn.mock.calls.map((c) => String(c[0])).find((u) => u.includes('/spend/logs/v2'))!;
+    expect(new URL(spendUrl).searchParams.get('start_date')).toBe('2026-07-31'); // loadSinceDay - 1
+  });
+
+  it('shares the ranking totals pull when the overlay loads from the same wide window', async () => {
+    const fetchFn = installFetch();
+    // The dashboard pattern when USAGE_HEATMAP_DAYS < rank window: totals load wide,
+    // then the overlay loads from that same wide date — one pull, not two.
+    await fetchAllAppLlmTotals('2026-08-01', SINCE);
+    await fetchAppLlmDaily('vividimage', '2026-09-05', '2026-08-01');
+    expect(fetchFn.mock.calls.length).toBe(3); // 2 spend pages + 1 key/list, shared
+  });
+
+  it('returns null when matched rows all predate sinceDay after bucketing', async () => {
+    installFetch();
+    // vividimage (HASH_A) has rows on 09-10/09-11 only; a later cutoff buckets to
+    // empty. Must be null (activity-only), not [] (which would enable the overlay).
+    expect(await fetchAppLlmDaily('vividimage', '2026-09-20', '2026-08-01')).toBeNull();
+  });
+
   it('returns null when no virtual key is aliased to the app', async () => {
     installFetch();
     expect(await fetchAppLlmDaily('does-not-exist', SINCE)).toBeNull();
@@ -156,6 +184,41 @@ describe('fetchUserLlmDaily', () => {
     cfg.config.llmProxyUserKey = 'user_id';
     const rows = await fetchUserLlmDaily('u2', SINCE);
     expect(rows).toEqual([{ day: '2026-09-10', spend: 0.5, totalTokens: 50 }]);
+  });
+});
+
+describe('fetchAllAppLlmTotals / fetchAllUserLlmTotals — composite-ranking material', () => {
+  it('totals every app by alias from one cached pull', async () => {
+    const fetchFn = installFetch();
+    const totals = await fetchAllAppLlmTotals(SINCE, SINCE);
+    expect(totals.get('vividimage')).toEqual({ spend: 3.5, tokens: 350 }); // HASH_A r1+r2+r3
+    expect(totals.get('pipeline')).toEqual({ spend: 9.0, tokens: 900 }); // HASH_B r4
+    // Same 3 calls as a single per-app fetch (2 spend pages + 1 key/list), not per-entity.
+    expect(fetchFn.mock.calls.length).toBe(3);
+  });
+
+  it('totals every user by end_user', async () => {
+    installFetch();
+    const totals = await fetchAllUserLlmTotals(SINCE, SINCE);
+    expect(totals.get('alice@x.com')).toEqual({ spend: 12.0, tokens: 1200 }); // r1+r3+r4
+    expect(totals.get('bob@x.com')).toEqual({ spend: 0.5, tokens: 50 }); // r2
+  });
+
+  it('counts only rows within the (narrower) ranking window while loading the wider one', async () => {
+    installFetch();
+    // Load from SINCE (wide) but only count from 2026-09-11 onward.
+    const totals = await fetchAllAppLlmTotals(SINCE, '2026-09-11');
+    expect(totals.get('vividimage')).toEqual({ spend: 2.0, tokens: 200 }); // r3 only
+    expect(totals.get('pipeline')).toEqual({ spend: 9.0, tokens: 900 }); // r4
+  });
+
+  it('is empty when the feature is off / per-user is unset', async () => {
+    installFetch();
+    cfg.config.llmProxyVendor = '';
+    expect((await fetchAllAppLlmTotals(SINCE, SINCE)).size).toBe(0);
+    cfg.config.llmProxyVendor = 'litellm';
+    cfg.config.llmProxyUserKey = '';
+    expect((await fetchAllUserLlmTotals(SINCE, SINCE)).size).toBe(0);
   });
 });
 

@@ -281,6 +281,7 @@
   "dashboard": {
     "title": "Dashboard",
     "intro": "Top {n} apps and users by activity over the last {days} days. Each card links through to its full details.",
+    "introComposite": "Top {n} apps and users by composite activity — usage plus LLM cost and tokens — over the last {days} days. Each card links through to its full details.",
     "topApps": "Top apps",
     "topUsers": "Top users",
     "score": "Activity",

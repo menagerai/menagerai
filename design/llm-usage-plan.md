@@ -143,12 +143,16 @@ LLM_PROXY_USER_KEY      # per-user match field: "end_user" (default) | "user_id"
                         # Unset => per-user LLM section skipped.
 LLM_PROXY_CACHE_TTL_MS  # optional, default 60000
 LLM_PROXY_MAX_PAGES     # optional safety bound on the row pull, default 50
+LLM_BOOST_MAX           # optional, default 0.5 — max composite-ranking boost from
+                        # LLM use, as a fraction of the activity scale. Clamped [0,1].
+LLM_BOOST_COST_SHARE    # optional, default 0.8 — split of that boost between spend
+                        # (this share) and tokens (the rest). Clamped [0,1].
 ```
 
 Config keys: `llmProxyVendor`, `llmProxyBaseUrl`, `llmProxyMgmtApiKey`,
-`llmProxyUserKey`, `llmCacheTtlMs`, `llmMaxPages`. Boot check: if `llmProxyVendor`
-is set but base URL or key is missing, log a warning and treat the feature as off
-(never throw).
+`llmProxyUserKey`, `llmCacheTtlMs`, `llmMaxPages`, `llmBoostMax`,
+`llmBoostCostShare`. Boot check: if `llmProxyVendor` is set but base URL or key is
+missing, log a warning and treat the feature as off (never throw).
 
 ---
 
@@ -210,6 +214,56 @@ The green square uses `intensityFor(count, scaleMax)` = `log(count)/log(scaleMax
   tiny section compresses gently, mirroring green's quiet-window behaviour).
 
 `intensityFor` and the green path stay byte-identical; LLM fields are additive.
+
+`intensityFor`'s log core is factored into an exported `logNorm(value, peak) → 0..1`
+(float, peak → 1, `value<=0 ⇒ 0`, sub-1 values floored at 0); `intensityFor` becomes
+`round(100 · logNorm(count, scaleMax))`. The composite ranking below reuses `logNorm`,
+so shading and ranking normalise usage, spend and tokens the same way.
+
+---
+
+## Dashboard ranking — composite of activity + a bounded LLM boost
+
+The Top apps / Top users lists rank on a composite score, computed across **all**
+entities in the rank window before cutting to the top N (so an LLM-heavy entity can
+climb *into* the list, not merely reorder within it):
+
+```
+score = logNorm(activity, activityPeak)                 # baseline, unchanged order
+      + LLM_BOOST_MAX · ( COST_SHARE · logNorm(spendCents, spendPeakCents)
+                        + (1−COST_SHARE) · logNorm(tokens,     tokenPeak) )
+```
+
+- **Activity stays the baseline.** `logNorm` is monotonic, so with equal (or no) LLM
+  data the order — and its `(active desc, key asc)` tie-break — is identical to the
+  previous activity-only ranking. When the feature is off the boost term is absent.
+- **Never a penalty.** Entities with no LLM usage get boost 0; only others are lifted.
+- **Cost over tokens.** `COST_SHARE = LLM_BOOST_COST_SHARE` (default 0.8) weights spend
+  ~4× tokens; the shared `logNorm` keeps billion-token counts from running away.
+- **Spend in cents.** Spend is normalised in integer cents (like the heatmap), so
+  sub-dollar totals keep their ordering instead of collapsing at the ramp's low end.
+- **Peak-relative, candidate-only.** All three signals normalise against the section
+  peak (the busiest entity), so the boost is self-scaling — no absolute-dollar
+  constants. Peaks are computed **only over ranking candidates**, so unrelated proxy
+  identities (aliases/customers that aren't portal entities) can't inflate them.
+- **No extra proxy traffic.** Per-entity spend/token totals come from the same cached
+  `/spend/logs/v2` pull the winner heatmaps already need (`fetchAllAppLlmTotals` /
+  `fetchAllUserLlmTotals` fold the cached rows by alias / `end_user`). Everything loads
+  from the wider of the rank/heatmap windows (`loadSince`) — the overlay loaders take a
+  `loadSinceDay` separate from their bucketing cutoff — so even when
+  `USAGE_HEATMAP_DAYS` is narrower than the rank window it stays one shared pull. If
+  that pull fails, the section's overlay fetch is skipped too (its cached rejection was
+  already evicted) so a down proxy costs one timeout, not two.
+
+`topAppsByActivity` / `topUsersByActivity` take an optional `RankBoost` (the section
+totals + weights); they compute the peaks over their own candidates and apply the
+pure, config-free `compositeBoost(...)` (in `src/usage.ts`, unit-tested directly).
+User totals are keyed by portal **email** (the `end_user`/`user` field), so each user
+candidate carries its email as its LLM key. The route wires `config.llmBoostMax` /
+`config.llmBoostCostShare`; the dashboard intro switches to `dashboard.introComposite`
+when the ranking actually used LLM data — i.e. a displayed top entity carries LLM
+totals — rather than when the (heatmap-window) overlay has data, since the two windows
+can differ when `USAGE_HEATMAP_DAYS` is narrower than the rank window.
 
 ---
 

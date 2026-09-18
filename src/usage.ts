@@ -133,42 +133,102 @@ export interface UserActivity {
   active: number; // active app-days in the window
 }
 
+// The LLM totals + weights that fold into a composite ranking. `totals` is keyed
+// by each entity's LLM identity (app_key/alias for apps, portal email for users);
+// an entity carries that identity as its `llmKey`.
+export interface RankBoost {
+  totals: Map<string, { spend: number; tokens: number }>;
+  boostMax: number;
+  costShare: number;
+}
+
+// Rank entities by a composite score = log-normalised activity (anchored to the
+// section's busiest entity) + an optional additive LLM boost, then take the top
+// `limit`. The boost lifts heavier LLM users without ever demoting entities that
+// have none (their boost is 0). With no boost — or equal LLM across the section —
+// the score is monotonic in activity, so the order and its (active desc, key asc)
+// tie-break are identical to a plain activity ranking. Ranking happens across ALL
+// entities in the window (names are joined only for the survivors), so an LLM-heavy
+// entity can climb into the list, not merely reorder within it.
+//
+// The spend/token peaks that normalise the boost are taken ONLY over ranking
+// candidates, so unrelated proxy identities (aliases/customers that aren't portal
+// entities) can't inflate them and shrink every real candidate's boost.
+type Ranked = { key: string; active: number; llmKey?: string };
+function rankByActivity(entities: Ranked[], limit: number, boost?: RankBoost): Ranked[] {
+  let activityPeak = 0;
+  let spendPeak = 0;
+  let tokenPeak = 0;
+  for (const e of entities) {
+    if (e.active > activityPeak) activityPeak = e.active;
+    const t = boost?.totals.get(e.llmKey ?? e.key);
+    if (t) {
+      if (t.spend > spendPeak) spendPeak = t.spend;
+      if (t.tokens > tokenPeak) tokenPeak = t.tokens;
+    }
+  }
+  return entities
+    .map((e) => {
+      let score = logNorm(e.active, activityPeak);
+      const t = boost?.totals.get(e.llmKey ?? e.key);
+      if (boost && t) score += compositeBoost(t.spend, t.tokens, spendPeak, tokenPeak, boost.boostMax, boost.costShare);
+      return { e, score };
+    })
+    .sort((a, b) => b.score - a.score || b.e.active - a.e.active || (a.e.key < b.e.key ? -1 : 1))
+    .slice(0, limit)
+    .map((x) => x.e);
+}
+
 // Apps with the most active users over [sinceDay, today]. Each usageDaily row is
 // one (user, app, day), so summing rows per app = total active user-days = the
-// window's cumulative DAU. Names are joined in for display.
-export async function topAppsByActivity(sinceDay: string, limit: number): Promise<AppActivity[]> {
+// window's cumulative DAU. `boost` (optional) folds LLM usage into the ranking
+// (keyed by app_key, matching the virtual-key alias). Names are joined in for
+// display.
+export async function topAppsByActivity(
+  sinceDay: string,
+  limit: number,
+  boost?: RankBoost,
+): Promise<AppActivity[]> {
   const rows = await col.usageDaily
     .aggregate<{ _id: string; active: number }>([
       { $match: { day: { $gte: sinceDay } } },
       { $group: { _id: '$app_key', active: { $sum: 1 } } },
-      { $sort: { active: -1, _id: 1 } },
-      { $limit: limit },
     ])
     .toArray();
-  const apps = await col.apps.find({ key: { $in: rows.map((r) => r._id) } }).project({ key: 1, name: 1 }).toArray();
+  const top = rankByActivity(rows.map((r) => ({ key: r._id, active: r.active })), limit, boost);
+  const apps = await col.apps.find({ key: { $in: top.map((t) => t.key) } }).project({ key: 1, name: 1 }).toArray();
   const nameByKey = new Map(apps.map((a) => [a.key, (a as { name?: string }).name || a.key]));
-  return rows.map((r) => ({ app_key: r._id, name: nameByKey.get(r._id) || r._id, active: r.active }));
+  return top.map((t) => ({ app_key: t.key, name: nameByKey.get(t.key) || t.key, active: t.active }));
 }
 
 // Most active users over the window (Σ active app-days), with emails joined in.
-export async function topUsersByActivity(sinceDay: string, limit: number): Promise<UserActivity[]> {
+// `boost` (optional) folds LLM usage into the ranking; its totals are keyed by
+// portal EMAIL (the LiteLLM end_user/user field), not the user id, so each
+// candidate carries its email as `llmKey`. Emails are joined BEFORE ranking (which
+// also drops deleted users up front rather than after the cut).
+export async function topUsersByActivity(
+  sinceDay: string,
+  limit: number,
+  boost?: RankBoost,
+): Promise<UserActivity[]> {
   const rows = await col.usageDaily
     .aggregate<{ _id: ObjectId; active: number }>([
       { $match: { day: { $gte: sinceDay } } },
       { $group: { _id: '$user_id', active: { $sum: 1 } } },
-      { $sort: { active: -1, _id: 1 } },
-      { $limit: limit },
     ])
     .toArray();
-  const ids = rows.map((r) => r._id);
-  const users = await col.users.find({ _id: { $in: ids } }).project({ email: 1, name: 1 }).toArray();
+  const users = await col.users.find({ _id: { $in: rows.map((r) => r._id) } }).project({ email: 1, name: 1 }).toArray();
   const byId = new Map(users.map((u) => [String(u._id), u as { email: string; name?: string }]));
-  return rows
-    .filter((r) => byId.has(String(r._id))) // drop deleted users
-    .map((r) => {
-      const u = byId.get(String(r._id)) as { email: string; name?: string };
-      return { user_id: String(r._id), email: u.email, name: u.name || undefined, active: r.active };
-    });
+  const candidates = rows.flatMap((r) => {
+    const u = byId.get(String(r._id));
+    return u ? [{ key: String(r._id), active: r.active, email: u.email, name: u.name || undefined }] : []; // drop deleted
+  });
+  const byKey = new Map(candidates.map((c) => [c.key, c]));
+  const top = rankByActivity(candidates.map((c) => ({ key: c.key, active: c.active, llmKey: c.email })), limit, boost);
+  return top.map((t) => {
+    const c = byKey.get(t.key) as { email: string; name?: string; active: number };
+    return { user_id: t.key, email: c.email, name: c.name, active: c.active };
+  });
 }
 
 // ---- Read path: heatmap (per-day intensity) ----
@@ -237,10 +297,41 @@ const MIN_SCALE_MAX = 6;
 // end, count === scaleMax at its dark end:
 //   scaleMax 40 -> 1:0  2:19  3:30  5:44  10:62  20:81  40:100
 //   scaleMax  6 -> 1:0  2:39  3:61  4:77   5:90         6:100
+// Log-scaled position of `value` on a 0..1 ramp anchored at `peak` (the section's
+// busiest entity/day). The section peak maps to 1, and the log keeps the low end
+// legible instead of crushing it against a heavy tail. Values at or below 1, or a
+// degenerate peak <= 1, collapse to the ends. Shared by heatmap shading (via
+// intensityFor) and the dashboard's composite ranking, so both normalise usage,
+// spend and tokens the same way.
+export function logNorm(value: number, peak: number): number {
+  if (value <= 0) return 0;
+  if (peak <= 1 || value >= peak) return 1;
+  const t = Math.log(value) / Math.log(peak);
+  return t < 0 ? 0 : t; // fractional values (e.g. sub-$1 spend) fall below the ramp
+}
+
 function intensityFor(count: number, scaleMax: number): number {
-  if (count <= 0) return 0;
-  const t = Math.log(count) / Math.log(scaleMax); // scaleMax >= MIN_SCALE_MAX, so log > 0
-  return Math.max(0, Math.min(100, Math.round(100 * t)));
+  return Math.round(100 * logNorm(count, scaleMax)); // scaleMax >= MIN_SCALE_MAX
+}
+
+// The dashboard LLM ranking boost for one entity: log-normalised spend and tokens
+// (each anchored to the section peak), weighted `costShare` toward cost and scaled
+// by `boostMax`. Pure and config-free so the route and tests share one definition.
+// Zero spend and tokens => 0 (entity never demoted); cost outweighs tokens at equal
+// normalised magnitude whenever costShare > 0.5. Spend (USD) is normalised in
+// integer cents — as the heatmap does — so sub-dollar totals keep their ordering
+// instead of collapsing at the log ramp's low end. See design/llm-usage-plan.md.
+export function compositeBoost(
+  spend: number,
+  tokens: number,
+  spendPeak: number,
+  tokenPeak: number,
+  boostMax: number,
+  costShare: number,
+): number {
+  const cents = Math.round(spend * 100);
+  const peakCents = Math.round(spendPeak * 100);
+  return boostMax * (costShare * logNorm(cents, peakCents) + (1 - costShare) * logNorm(tokens, tokenPeak));
 }
 
 // The weekday of a 'YYYY-MM-DD' label as a Monday-based index (0=Mon..6=Sun) —

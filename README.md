@@ -100,9 +100,13 @@ LLM_PROXY_MGMT_API_KEY=sk-...                 # a management-scoped (read-only) 
 LLM_PROXY_USER_KEY=end_user                   # match a portal email against: end_user | user_id
 # LLM_PROXY_CACHE_TTL_MS=60000                # optional: proxy-response cache TTL
 # LLM_PROXY_MAX_PAGES=50                       # optional: safety bound on the spend-log page pull
+# LLM_BOOST_MAX=0.5                            # optional: max ranking boost from LLM use, as a fraction of activity
+# LLM_BOOST_COST_SHARE=0.8                     # optional: split of that boost between cost (0.8) and tokens (0.2)
 ```
 
 Per-app data maps a portal app key to the LiteLLM virtual key of the same **alias**; per-user data matches the portal email against the field named by `LLM_PROXY_USER_KEY` (the LiteLLM **Customer**/`end_user` field by default). Both are kept aligned out-of-band and degrade gracefully to activity-only when unmatched. See [`design/llm-usage-plan.md`](./design/llm-usage-plan.md) for the full contract.
+
+When LLM metrics are on, the dashboard's Top apps / Top users lists rank on a **composite** of activity plus a bounded LLM boost (see `LLM_BOOST_*` above): activity stays the baseline, LLM cost and tokens can only lift a ranking, and entities with no LLM use are never pushed down. With the feature off, ranking is plain activity, exactly as before.
 
 **3. Run it:**
 

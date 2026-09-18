@@ -140,23 +140,91 @@ function bucket(rows: SpendRow[], sinceDay: string): LlmDailyRow[] {
     .sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
-// Per-app daily usage. null = feature off, or no virtual key aliased to appKey
-// has any activity in the window (render activity-only).
-export async function fetchAppLlmDaily(appKey: string, sinceDay: string): Promise<LlmDailyRow[] | null> {
+// Per-app daily usage over [sinceDay, today]. null = feature off, or no virtual key
+// aliased to appKey has any activity in the window (render activity-only).
+// `loadSinceDay` (>= sinceDay's coverage; defaults to sinceDay) is the window to
+// pull/cache rows from — pass a wider one to share a cached pull made elsewhere;
+// bucket() still trims to sinceDay.
+export async function fetchAppLlmDaily(
+  appKey: string,
+  sinceDay: string,
+  loadSinceDay: string = sinceDay,
+): Promise<LlmDailyRow[] | null> {
   if (!llmConfigured()) return null;
-  const [rows, aliases] = await Promise.all([loadRows(sinceDay), loadAliasMap()]);
+  const [rows, aliases] = await Promise.all([loadRows(loadSinceDay), loadAliasMap()]);
   const mine = rows.filter((r) => aliases.get(r.api_key) === appKey);
-  return mine.length ? bucket(mine, sinceDay) : null;
+  const daily = bucket(mine, sinceDay);
+  return daily.length ? daily : null; // empty after bucketing (all rows predate sinceDay) => activity-only
 }
 
 // Per-user daily usage. null = per-user not configured, or no rows match this
-// email in the chosen field (render activity-only).
-export async function fetchUserLlmDaily(userEmail: string, sinceDay: string): Promise<LlmDailyRow[] | null> {
+// email in the chosen field (render activity-only). `loadSinceDay` as above.
+export async function fetchUserLlmDaily(
+  userEmail: string,
+  sinceDay: string,
+  loadSinceDay: string = sinceDay,
+): Promise<LlmDailyRow[] | null> {
   if (!llmUserConfigured()) return null;
   const useEndUser = config.llmProxyUserKey === 'end_user';
-  const rows = await loadRows(sinceDay);
+  const rows = await loadRows(loadSinceDay);
   const mine = rows.filter((r) => (useEndUser ? r.end_user : r.user) === userEmail);
-  return mine.length ? bucket(mine, sinceDay) : null;
+  const daily = bucket(mine, sinceDay);
+  return daily.length ? daily : null; // empty after bucketing (all rows predate sinceDay) => activity-only
+}
+
+// Fold one row into a running per-key total, applying the same tz-day window
+// guard as bucket() so totals honour the portal timezone and the shifted UTC pull.
+function addTotal(
+  map: Map<string, { spend: number; tokens: number }>,
+  key: string,
+  r: SpendRow,
+  windowSinceDay: string,
+): void {
+  const ms = Date.parse(r.startTime);
+  if (!Number.isFinite(ms)) return;
+  if (usageDay(ms) < windowSinceDay) return;
+  const acc = map.get(key) ?? { spend: 0, tokens: 0 };
+  acc.spend += Number(r.spend) || 0;
+  acc.tokens += Number(r.total_tokens) || 0;
+  map.set(key, acc);
+}
+
+// Windowed spend/token totals for EVERY app (keyed by virtual-key alias) — the
+// material the dashboard composite ranking scores across all apps before cutting
+// to the top N. `windowSinceDay` is the ranking window; `loadSinceDay` is the day
+// to pull/cache rows from — pass the (wider) heatmap window so this reuses the
+// exact cached pull the winner heatmaps already need, adding no proxy traffic.
+// Empty when the feature is off.
+export async function fetchAllAppLlmTotals(
+  loadSinceDay: string,
+  windowSinceDay: string,
+): Promise<Map<string, { spend: number; tokens: number }>> {
+  const out = new Map<string, { spend: number; tokens: number }>();
+  if (!llmConfigured()) return out;
+  const [rows, aliases] = await Promise.all([loadRows(loadSinceDay), loadAliasMap()]);
+  for (const r of rows) {
+    const appKey = aliases.get(r.api_key);
+    if (appKey) addTotal(out, appKey, r, windowSinceDay);
+  }
+  return out;
+}
+
+// Windowed spend/token totals for EVERY user, keyed by the portal email in the
+// LLM_PROXY_USER_KEY field. Same cached-pull reuse as fetchAllAppLlmTotals. Empty
+// when per-user is not configured.
+export async function fetchAllUserLlmTotals(
+  loadSinceDay: string,
+  windowSinceDay: string,
+): Promise<Map<string, { spend: number; tokens: number }>> {
+  const out = new Map<string, { spend: number; tokens: number }>();
+  if (!llmUserConfigured()) return out;
+  const useEndUser = config.llmProxyUserKey === 'end_user';
+  const rows = await loadRows(loadSinceDay);
+  for (const r of rows) {
+    const key = useEndUser ? r.end_user : r.user;
+    if (key) addTotal(out, key, r, windowSinceDay);
+  }
+  return out;
 }
 
 // Totals over a trailing window [sinceDay, today]. Mirrors the activity score's

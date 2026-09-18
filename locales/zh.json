@@ -281,6 +281,7 @@
   "dashboard": {
     "title": "数据面板",
     "intro": "按最近 {days} 天的活跃度排列的前 {n} 个应用与用户，点击卡片可查看完整详情。",
+    "introComposite": "按最近 {days} 天的综合活跃度（使用情况加 LLM 花费与 tok）排列的前 {n} 个应用与用户，点击卡片可查看完整详情。",
     "topApps": "热门应用",
     "topUsers": "活跃用户",
     "score": "活跃",
