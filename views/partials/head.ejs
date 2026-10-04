@@ -274,13 +274,15 @@
        op never feels like a stall. Built from the toast family so it reads the
        same; the result toast lands in the very spot once the next page loads. */
     .toast.loading { color:var(--muted); }
-    .toast .spinner { width:15px; height:15px; flex:0 0 auto; border-radius:50%;
+    .toast .spinner, .llm-status .spinner { width:15px; height:15px; flex:0 0 auto; border-radius:50%;
             border:2px solid var(--line); border-top-color:var(--accent); animation:spin360 .6s linear infinite; }
     @keyframes spin360 { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) {
-      .toast .spinner { animation:spinPulse 1s ease-in-out infinite; }
+      .toast .spinner, .llm-status .spinner { animation:spinPulse 1s ease-in-out infinite; }
     }
     @keyframes spinPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+    /* Inline status while LLM usage loads in the background (partials/llm-status). */
+    .llm-status { display:flex; align-items:center; gap:8px; }
     /* Demo-mode banner: a thin strip above the topbar announcing the throwaway
        nature of the deployment and (once armed) counting down to the next reset. */
     /* Pinned above the topbar. Its height is published to --demo-banner-h (JS

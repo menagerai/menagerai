@@ -291,6 +291,7 @@
     "spend": "LLM",
     "tokens": "Tokens",
     "timeout": "来自 {provider} 的 LLM 使用数据暂时不可用。",
+    "loading": "正在从 {provider} 加载 LLM 使用数据…",
     "legendSquare": "方块 = 活跃",
     "legendSpend": "条 = LLM 花费",
     "legendTokens": "条 = tok"

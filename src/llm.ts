@@ -41,15 +41,26 @@ interface SpendRow {
 // The caches hold the in-flight PROMISE, not just the resolved value, so the many
 // card fetches a cold dashboard fires concurrently all await one shared pull
 // instead of each paginating the proxy independently. A rejected promise is
-// evicted so a later request retries rather than caching the failure.
+// evicted so a later request retries rather than caching the failure; a resolved
+// one is restamped so a slow pull still gets the full TTL from completion.
 const rowCache = ttlCache<string, Promise<SpendRow[]>>(config.llmCacheTtlMs, 64);
 const aliasCache = ttlCache<string, Promise<Map<string, string>>>(config.llmCacheTtlMs, 4);
 
-const TIMEOUT_MS = 5_000;
+// Once a cached pull settles: restamp it on success (full TTL from completion),
+// evict it on failure. Only touches the entry if it is still this pull, so a stale
+// pull never clobbers a newer one.
+function settle<V>(cache: { get(k: string): Promise<V> | undefined; set(k: string, v: Promise<V>): void; delete(k: string): void }, key: string, p: Promise<V>): void {
+  p.then(
+    () => { if (cache.get(key) === p) cache.set(key, p); },
+    () => { if (cache.get(key) === p) cache.delete(key); },
+  );
+}
 
-async function proxyGet(path: string): Promise<Record<string, unknown>> {
+// `deadline` (epoch ms) is shared by every page of one pull, so the budget
+// (config.llmTimeoutMs) bounds the whole pagination, not each request.
+async function proxyGet(path: string, deadline: number): Promise<Record<string, unknown>> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), Math.max(0, deadline - Date.now()));
   try {
     const res = await fetch(`${config.llmProxyBaseUrl}${path}`, {
       headers: { Authorization: `Bearer ${config.llmProxyMgmtApiKey}` },
@@ -80,13 +91,14 @@ function loadRows(sinceDay: string): Promise<SpendRow[]> {
   const cached = rowCache.get(sinceDay);
   if (cached) return cached;
   const p = (async () => {
+    const deadline = Date.now() + config.llmTimeoutMs;
     const startDate = shiftUtcDay(sinceDay, -1);
     const endDate = shiftUtcDay(usageDay(Date.now()), 1);
     const rows: SpendRow[] = [];
     let page = 1;
     let totalPages = 1;
     do {
-      const j = await proxyGet(`/spend/logs/v2?start_date=${startDate}&end_date=${endDate}&page=${page}&page_size=1000`);
+      const j = await proxyGet(`/spend/logs/v2?start_date=${startDate}&end_date=${endDate}&page=${page}&page_size=1000`, deadline);
       for (const r of (j.data as SpendRow[]) ?? []) rows.push(r);
       totalPages = Number(j.total_pages ?? 1);
       page++;
@@ -94,7 +106,7 @@ function loadRows(sinceDay: string): Promise<SpendRow[]> {
     return rows;
   })();
   rowCache.set(sinceDay, p);
-  p.catch(() => rowCache.delete(sinceDay));
+  settle(rowCache, sinceDay, p);
   return p;
 }
 
@@ -104,11 +116,12 @@ function loadAliasMap(): Promise<Map<string, string>> {
   const cached = aliasCache.get('keys');
   if (cached) return cached;
   const p = (async () => {
+    const deadline = Date.now() + config.llmTimeoutMs;
     const map = new Map<string, string>();
     let page = 1;
     let totalPages = 1;
     do {
-      const j = await proxyGet(`/key/list?page=${page}&page_size=200&return_full_object=true`);
+      const j = await proxyGet(`/key/list?page=${page}&page_size=200&return_full_object=true`, deadline);
       for (const k of (j.keys as { token?: string; key_alias?: string }[]) ?? []) {
         if (k.token && k.key_alias) map.set(k.token, k.key_alias);
       }
@@ -118,7 +131,7 @@ function loadAliasMap(): Promise<Map<string, string>> {
     return map;
   })();
   aliasCache.set('keys', p);
-  p.catch(() => aliasCache.delete('keys'));
+  settle(aliasCache, 'keys', p);
   return p;
 }
 

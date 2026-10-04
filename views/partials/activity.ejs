@@ -1,0 +1,11 @@
+<%# A detail page's activity block: heatmap (with the LLM overlay when present)
+    and the LLM score rows. Rendered inside admin/app and admin/user, and on its
+    own as their /llm fragment. While activity-only, the root carries
+    data-llm-src so the loader in partials/foot swaps in the LLM-enriched block. %>
+<div class="activity-block"<% if (typeof llmSrc !== 'undefined' && llmSrc) { %> data-llm-src="<%= llmSrc %>"<% } %>>
+  <%- include('llm-status') %>
+  <%- include('heatmap', { heatmap, heatmapDays, llm: llmOn }) %>
+  <% if (llm) { %>
+    <%- include('score-table', { recentDays: rankDays, fullDays: heatmapDays, rows: [], llm }) %>
+  <% } %>
+</div>

@@ -59,6 +59,36 @@
   })();
 </script>
 <script>
+  // Lazy LLM blocks: the server renders a block activity-only and marks it with
+  // data-llm-src (its fragment route) so the slow LiteLLM pull never blocks the
+  // page. Fetch that fragment (the same block, LLM-enriched) and replace the
+  // block with it. The server bounds the request with LLM_PROXY_TIMEOUT_MS; on
+  // failure the block's loading line (partials/llm-status) becomes the warning.
+  (function () {
+    document.querySelectorAll('[data-llm-src]').forEach(function (block) {
+      fetch(block.getAttribute('data-llm-src'), { credentials: 'same-origin', headers: { Accept: 'text/html' } })
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error(String(r.status))); })
+        .then(function (html) {
+          var tpl = document.createElement('template');
+          tpl.innerHTML = html.trim();
+          var next = tpl.content.firstElementChild;
+          if (!next) throw new Error('empty fragment');
+          block.replaceWith(next);
+          // A block that sizes the page (dashboard cards) carries its width.
+          var w = next.getAttribute('data-card-w');
+          var wrap = next.closest('.wrap');
+          if (w && wrap) wrap.style.setProperty('--card-w', w + 'px');
+          // Same snap-right as above for the new heatmaps (newest column visible).
+          next.querySelectorAll('.heatmap').forEach(function (el) { el.scrollLeft = el.scrollWidth; });
+        })
+        .catch(function () {
+          var s = block.querySelector('.llm-status');
+          if (s) { s.className = 'muted'; s.removeAttribute('role'); s.removeAttribute('aria-live'); s.textContent = s.getAttribute('data-failed'); }
+        });
+    });
+  })();
+</script>
+<script>
   // Top-bar dropdowns are <details> elements; close any open one when clicking
   // outside it (or opening another), so they behave like normal menus.
   document.addEventListener('click', function (e) {

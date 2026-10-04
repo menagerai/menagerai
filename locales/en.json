@@ -291,6 +291,7 @@
     "spend": "LLM",
     "tokens": "Tokens",
     "timeout": "LLM usage data from {provider} is temporarily unavailable.",
+    "loading": "Loading LLM usage from {provider}…",
     "legendSquare": "square = activity",
     "legendSpend": "bar = LLM spend",
     "legendTokens": "bar = tokens"

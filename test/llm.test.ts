@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mutable config so individual tests can flip llmProxyUserKey / vendor. llm.ts
 // reads these at call time, so mutation between cases takes effect immediately.
@@ -11,6 +11,7 @@ const cfg = vi.hoisted(() => ({
     llmProxyUserKey: 'end_user',
     llmCacheTtlMs: 60_000,
     llmMaxPages: 50,
+    llmTimeoutMs: 30_000,
   },
 }));
 vi.mock('../src/config', () => cfg);
@@ -160,6 +161,51 @@ describe('fetchAppLlmDaily', () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
     await expect(fetchAppLlmDaily('vividimage', SINCE)).rejects.toBeInstanceOf(LlmProxyError);
+  });
+});
+
+describe('pull deadline and cache lifetime', () => {
+  // Every proxy call takes `pageMs` (fake time) and honours the abort signal.
+  function installSlowFetch(pageMs: number, totalPages: number) {
+    const fn = vi.fn((url: string, opts: { signal: AbortSignal }) => new Promise<Response>((resolve, reject) => {
+      const u = String(url);
+      const body = u.includes('/key/list')
+        ? { keys: KEYS, total_pages: 1 }
+        : { data: ROWS, page: Number(new URL(u).searchParams.get('page')), total_pages: totalPages };
+      const t = setTimeout(() => resolve({ ok: true, json: async () => body } as Response), pageMs);
+      opts.signal.addEventListener('abort', () => { clearTimeout(t); reject(new Error('aborted')); });
+    }));
+    global.fetch = fn as unknown as typeof fetch;
+    return fn;
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('lets a slow page finish within the total budget', async () => {
+    installSlowFetch(6_000, 1); // well past the old 5s per-call limit
+    const p = fetchAppLlmDaily('vividimage', SINCE);
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(await p).not.toBeNull();
+  });
+
+  it('bounds the whole pagination, not each page', async () => {
+    installSlowFetch(20_000, 2); // page 1 at 20s fits; page 2 would end at 40s > 30s
+    const p = fetchAppLlmDaily('vividimage', SINCE);
+    const settled = expect(p).rejects.toBeInstanceOf(LlmProxyError);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await settled;
+  });
+
+  it('starts the cache TTL when the pull completes, not when it starts', async () => {
+    const fetchFn = installSlowFetch(20_000, 1);
+    const p = fetchAppLlmDaily('vividimage', SINCE);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await p;
+    const calls = fetchFn.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(50_000); // 70s after start, 50s after completion
+    await fetchAppLlmDaily('pipeline', SINCE);
+    expect(fetchFn.mock.calls.length).toBe(calls); // still cached
   });
 });
 

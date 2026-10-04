@@ -141,6 +141,9 @@ export const config = {
   // per-user LLM section is skipped (per-app still works).
   llmProxyUserKey: opt('LLM_PROXY_USER_KEY'),
   llmCacheTtlMs: int('LLM_PROXY_CACHE_TTL_MS', 60_000),
+  // Total budget for one paginated proxy pull (all pages together). The dashboard
+  // fetches LLM data in the background, so this can be generous.
+  llmTimeoutMs: int('LLM_PROXY_TIMEOUT_MS', 30_000),
   llmMaxPages: int('LLM_PROXY_MAX_PAGES', 50),
   // Dashboard composite ranking: on top of activity, LLM spend and tokens add a
   // bounded boost so heavier LLM users rank higher without burying activity. The

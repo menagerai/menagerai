@@ -296,6 +296,7 @@
     "spend": "LLM",
     "tokens": "Tokens",
     "timeout": "{provider} से एलएलएम उपयोग डेटा अस्थायी रूप से अनुपलब्ध है।",
+    "loading": "{provider} से एलएलएम उपयोग डेटा लोड हो रहा है…",
     "legendSquare": "वर्ग = गतिविधि",
     "legendSpend": "पट्टी = LLM खर्च",
     "legendTokens": "पट्टी = tok"

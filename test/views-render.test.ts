@@ -60,7 +60,7 @@ const cases: [string, Record<string, unknown>][] = [
       access: [{ app: 'demo', allowed: true }],
       topApps: [{ app_key: 'demo', days: 3, last: new Date() }],
       heatmap: { weeks: [[{ day: '2026-06-23', count: 1, level: 1 }, { day: null, count: 0, level: 0 }]], max: 1 },
-      heatmapDays: 365,
+      ...activity(),
       isSuperadmin: false,
       msg: null,
     },
@@ -77,7 +77,7 @@ const cases: [string, Record<string, unknown>][] = [
       access: [],
       topApps: [], // exercise the "No usage recorded yet" branch
       heatmap: { weeks: [], max: 0 },
-      heatmapDays: 365,
+      ...activity(),
       isSuperadmin: true,
       msg: null,
     },
@@ -90,7 +90,7 @@ const cases: [string, Record<string, unknown>][] = [
   // role where every app is already granted: the add-grant picker is disabled
   ['admin/role.ejs', { user, isAdmin: true, role: { key: 'full', name: 'Full', grants: [{ app: 'demo' }] }, availableApps: [], protectedRole: 'system_admin', msg: null }],
   ['admin/apps.ejs', { user, isAdmin: true, apps: [appDoc], msg: null }],
-  ['admin/app.ejs', { user, isAdmin: true, app: appDoc, access: [], topUsers: [{ user_id: 'u1', email: 't@x.com', days: 2, last: new Date() }], heatmap: { weeks: [[{ day: '2026-06-23', count: 2, level: 2 }]], max: 2 }, heatmapDays: 365, defaultBaseUrls: ['app.example.com', 'intra.example.com'], msg: null }],
+  ['admin/app.ejs', { user, isAdmin: true, app: appDoc, access: [], topUsers: [{ user_id: 'u1', email: 't@x.com', days: 2, last: new Date() }], heatmap: { weeks: [[{ day: '2026-06-23', count: 2, level: 2 }]], max: 2 }, ...activity(), defaultBaseUrls: ['app.example.com', 'intra.example.com'], msg: null }],
   ['admin/email-rules.ejs', { user, isAdmin: true, rules: [{ _id: 'r1', type: 'domain', pattern: 'example.com', status: 'active', description: '' }], msg: null }],
   ['admin/audit.ejs', { user, isAdmin: true, logs: [] }],
   // Profile (self-service sessions): current + other + a legacy doc missing
@@ -108,7 +108,29 @@ const cases: [string, Record<string, unknown>][] = [
       ],
     },
   ],
+  // Dashboard: the page (activity-only, LLM loading in the background) and the
+  // body fragment /admin/dashboard/llm swaps in.
+  ['admin/dashboard.ejs', { user, isAdmin: true, ...dashModel(), llmSrc: '/admin/dashboard/llm' }],
+  ['admin/_dashboard-body.ejs', { ...dashModel(), appLlmOn: true, compositeRanking: true, llmWarning: true }],
+  // Detail-page activity block as its /llm fragment: LLM overlay + score rows.
+  ['partials/activity.ejs', { ...activity(), heatmap: { weeks: [], max: 0 }, llm: { spendRecent: 1, tokensRecent: 2e6, spendFull: 3, tokensFull: 4e6 }, llmOn: true }],
 ];
+
+// Locals the detail routes always supply for their activity block
+// (buildActivity); the page itself renders activity-only with a pending loader.
+function activity() {
+  return { heatmapDays: 365, rankDays: 30, llm: null, llmOn: false, llmWarning: false, llmSrc: '/admin/apps/demo/llm' };
+}
+
+function dashModel() {
+  const heatmap = { weeks: [], max: 0 };
+  return {
+    appCards: [{ app_key: 'demo', name: 'Demo', active: 3, scoreFull: 9, heatmap, llm: { spendRecent: 1, tokensRecent: 2e6, spendFull: 3, tokensFull: 4e6 } }],
+    userCards: [{ user_id: 'u1', email: 'u@example.com', name: 'U', active: 2, scoreFull: 5, heatmap, llm: null }],
+    appLlmOn: false, userLlmOn: false, compositeRanking: false, llmWarning: false, cardW: 760,
+    heatmapDays: 365, rankDays: 30, topN: 6,
+  };
+}
 
 // Admin pages set activePath (admin router) for sidebar highlighting; the
 // sidebar layout itself shows for any admin (isAdmin), on every page.

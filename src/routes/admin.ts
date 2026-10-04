@@ -102,6 +102,83 @@ function llmPeaks(maps: (LlmByDay | null)[]): { spendCents: number; tokens: numb
   return { spendCents, tokens };
 }
 
+// ---- Lazy LLM loading ----
+// The LiteLLM pull can be slow when cold, so no page blocks on it. Each page
+// renders activity-only (withLlm=false: no proxy calls) and, when LLM is
+// configured, marks the LLM-bearing block with `llmSrc`; the loader in
+// partials/foot fetches that fragment route (withLlm=true) and swaps it in.
+//
+// Fragment routes render a bare partial. They answer with a status even on an
+// unexpected error, so the loader shows its warning instead of spinning forever;
+// a null model is a 404.
+async function sendLlmFragment(res: Response, view: string, build: () => Promise<object | null>): Promise<void> {
+  try {
+    const model = await build();
+    if (!model) {
+      res.status(404).send('Not found');
+      return;
+    }
+    res.render(view, model);
+  } catch (err) {
+    console.error('LLM fragment error', err);
+    res.status(500).send('Internal error');
+  }
+}
+
+// What a detail page's activity block (partials/activity) is built from.
+interface ActivitySubject {
+  dailyCounts: (sinceDay: string) => Promise<Map<string, number>>;
+  llmOn: () => boolean;
+  llmDaily: (sinceDay: string) => Promise<LlmDailyRow[] | null>;
+  llmSrc: string; // this block's fragment route
+}
+function appActivity(appKey: string): ActivitySubject {
+  return {
+    dailyCounts: (since) => dailyCountsForApp(appKey, since),
+    llmOn: llmConfigured,
+    llmDaily: (since) => fetchAppLlmDaily(appKey, since),
+    llmSrc: `/admin/apps/${encodeURIComponent(appKey)}/llm`,
+  };
+}
+function userActivity(id: ObjectId, email: string): ActivitySubject {
+  return {
+    dailyCounts: (since) => dailyCountsForUser(id, since),
+    llmOn: llmUserConfigured, // per-user is gated on LLM_PROXY_USER_KEY
+    llmDaily: (since) => fetchUserLlmDaily(email, since),
+    llmSrc: `/admin/users/${String(id)}/llm`,
+  };
+}
+
+// Activity heatmap + optional LLM overlay and score rows for one app or user.
+// A proxy failure degrades to activity-only with an inline warning.
+async function buildActivity(s: ActivitySubject, withLlm: boolean) {
+  const now = Date.now();
+  const heatSince = heatmapSinceDay(now, config.usageHeatmapDays);
+  const rankSince = heatmapSinceDay(now, DASHBOARD_RANK_DAYS);
+  const dayCounts = await s.dailyCounts(heatSince);
+  let llmWarning = false;
+  let rows: LlmDailyRow[] | null = null;
+  if (withLlm && s.llmOn()) {
+    try {
+      rows = await s.llmDaily(heatSince);
+    } catch {
+      llmWarning = true;
+    }
+  }
+  const byDay = llmByDay(rows);
+  const peak = llmPeaks([byDay]);
+  const heatmap = buildHeatmap(dayCounts, now, config.usageHeatmapDays, {
+    llmByDay: byDay ?? undefined,
+    llmSpendScaleCents: peak.spendCents,
+    llmTokenScale: peak.tokens,
+  });
+  return {
+    heatmap, heatmapDays: config.usageHeatmapDays, rankDays: DASHBOARD_RANK_DAYS,
+    llm: llmScore(rows, rankSince, heatSince), llmOn: !!byDay, llmWarning,
+    llmSrc: !withLlm && s.llmOn() ? s.llmSrc : null,
+  };
+}
+
 // Admin landing → the dashboard (first sidebar item, the panel's overview).
 adminRouter.get('/', (_req, res) => res.redirect('/admin/dashboard'));
 
@@ -109,9 +186,17 @@ adminRouter.get('/', (_req, res) => res.redirect('/admin/dashboard'));
 // Overview of recent activity: Top apps and Top users, each ranked by activity
 // over a short trailing window (DASHBOARD_RANK_DAYS) so the lists track what's
 // busy now. Every card carries the same full-window heatmap shown on that
-// entity's own page, and links through to it.
+// entity's own page, and links through to it. LLM data (ranking boost + overlay)
+// loads lazily: /dashboard/llm serves the re-ranked body fragment.
 adminRouter.get('/dashboard', async (req, res) => {
-  const now = Date.now();
+  const model = await buildDashboard(Date.now(), false);
+  res.render('admin/dashboard', { user: req.user, isAdmin: true, ...model });
+});
+
+adminRouter.get('/dashboard/llm', (_req, res) =>
+  sendLlmFragment(res, 'admin/_dashboard-body', () => buildDashboard(Date.now(), true)));
+
+async function buildDashboard(now: number, withLlm: boolean) {
   const rankSince = heatmapSinceDay(now, DASHBOARD_RANK_DAYS);
   const heatSince = heatmapSinceDay(now, config.usageHeatmapDays);
   // Rows are pulled/cached from the wider of the two windows so the composite
@@ -124,7 +209,7 @@ adminRouter.get('/dashboard', async (req, res) => {
   // proxy traffic); a proxy failure degrades to activity-only ranking + a warning.
   let llmWarning = false;
   // A failed proxy pull evicts its cached (rejected) promise, so re-fetching it for
-  // the overlay below would incur a *second* 5s timeout in the same request. Track
+  // the overlay below would incur a *second* timeout in the same request. Track
   // the failure per section and skip that section's overlay fetch when it's down.
   let appLlmDown = false;
   let userLlmDown = false;
@@ -138,8 +223,8 @@ adminRouter.get('/dashboard', async (req, res) => {
     }
   };
   const [appTotals, userTotals] = await Promise.all([
-    safeTotals(fetchAllAppLlmTotals(loadSince, rankSince), () => { appLlmDown = true; }),
-    safeTotals(fetchAllUserLlmTotals(loadSince, rankSince), () => { userLlmDown = true; }),
+    withLlm ? safeTotals(fetchAllAppLlmTotals(loadSince, rankSince), () => { appLlmDown = true; }) : new Map() as LlmTotals,
+    withLlm ? safeTotals(fetchAllUserLlmTotals(loadSince, rankSince), () => { userLlmDown = true; }) : new Map() as LlmTotals,
   ]);
   const [topApps, topUsers] = await Promise.all([
     topAppsByActivity(rankSince, limit, rankBoost(appTotals)),
@@ -195,8 +280,8 @@ adminRouter.get('/dashboard', async (req, res) => {
     });
   };
   const [appLlm, userLlm] = await Promise.all([
-    llmConfigured() && !appLlmDown ? fetchSection(topApps.map((a) => a.app_key), fetchAppLlmDaily) : Promise.resolve(topApps.map(() => null)),
-    llmUserConfigured() && !userLlmDown ? fetchSection(topUsers.map((u) => u.email), fetchUserLlmDaily) : Promise.resolve(topUsers.map(() => null)),
+    withLlm && llmConfigured() && !appLlmDown ? fetchSection(topApps.map((a) => a.app_key), fetchAppLlmDaily) : Promise.resolve(topApps.map(() => null)),
+    withLlm && llmUserConfigured() && !userLlmDown ? fetchSection(topUsers.map((u) => u.email), fetchUserLlmDaily) : Promise.resolve(topUsers.map(() => null)),
   ]);
   const appByDay = appLlm.map(llmByDay);
   const userByDay = userLlm.map(llmByDay);
@@ -227,12 +312,17 @@ adminRouter.get('/dashboard', async (req, res) => {
     }),
     llm: llmScore(userLlm[i], rankSince, heatSince),
   }));
-  res.render('admin/dashboard', {
-    user: req.user, isAdmin: true,
-    appCards, userCards, appLlmOn, userLlmOn, compositeRanking, llmWarning,
+  // Exact width one full-window heatmap card needs, from its real column count:
+  // cols × colW + (cols-1) gaps, + card padding (32) + border (2). A tri-metric
+  // LLM cell is 14px (vs 11px) wide, so a column is 17px (14+3 gap) not 14px.
+  const weeks = (appCards[0] ?? userCards[0])?.heatmap.weeks.length ?? 0;
+  const cardW = weeks ? weeks * (appLlmOn || userLlmOn ? 17 : 14) - 3 + 34 : 760;
+  return {
+    appCards, userCards, appLlmOn, userLlmOn, compositeRanking, llmWarning, cardW,
+    llmSrc: !withLlm && llmConfigured() ? '/admin/dashboard/llm' : null,
     heatmapDays: config.usageHeatmapDays, rankDays: DASHBOARD_RANK_DAYS, topN: limit,
-  });
-});
+  };
+}
 
 // ---- Users ----
 adminRouter.get('/users', async (req, res) => {
@@ -300,6 +390,13 @@ adminRouter.post('/users/import', importUpload.single('file'), async (req, res) 
   }
 });
 
+adminRouter.get('/users/:id/llm', (req, res) =>
+  sendLlmFragment(res, 'partials/activity', async () => {
+    const id = oid(req.params.id);
+    const target = id && (await col.users.findOne({ _id: id }));
+    return id && target ? buildActivity(userActivity(id, target.email), true) : null;
+  }));
+
 adminRouter.get('/users/:id', async (req, res) => {
   const id = oid(req.params.id);
   if (!id) return res.status(404).send('Not found');
@@ -316,34 +413,12 @@ adminRouter.get('/users/:id', async (req, res) => {
     access.push({ app: a.key, allowed: d.allowed });
   }
   // Usage: most-used apps + an activity heatmap (apps active per day).
-  const now = Date.now();
-  const heatSince = heatmapSinceDay(now, config.usageHeatmapDays);
-  const rankSince = heatmapSinceDay(now, DASHBOARD_RANK_DAYS);
-  const [topApps, dayCounts] = await Promise.all([
+  const [topApps, activity] = await Promise.all([
     topAppsForUser(target._id as ObjectId, config.usageTopLimit),
-    dailyCountsForUser(target._id as ObjectId, heatSince),
+    buildActivity(userActivity(id, target.email), false),
   ]);
-  // LLM overlay for this user (gated on LLM_PROXY_USER_KEY; graceful fallback).
-  let llmWarning = false;
-  let userLlm: LlmDailyRow[] | null = null;
-  if (llmUserConfigured()) {
-    try {
-      userLlm = await fetchUserLlmDaily(target.email, heatSince);
-    } catch {
-      llmWarning = true;
-    }
-  }
-  const byDay = llmByDay(userLlm);
-  const peak = llmPeaks([byDay]);
-  const heatmap = buildHeatmap(dayCounts, now, config.usageHeatmapDays, {
-    llmByDay: byDay ?? undefined,
-    llmSpendScaleCents: peak.spendCents,
-    llmTokenScale: peak.tokens,
-  });
   res.render('admin/user', {
-    user: req.user, isAdmin: true, target, roles, apps, access,
-    topApps, heatmap, heatmapDays: config.usageHeatmapDays,
-    llm: llmScore(userLlm, rankSince, heatSince), llmOn: !!byDay, llmWarning, rankDays: DASHBOARD_RANK_DAYS,
+    user: req.user, isAdmin: true, target, roles, apps, access, topApps, ...activity,
     isSuperadmin: isSuperadmin(target.email), msg: req.query.msg || null,
   });
 });
@@ -515,6 +590,12 @@ adminRouter.post('/apps', async (req, res) => {
   }
 });
 
+adminRouter.get('/apps/:key/llm', (req, res) =>
+  sendLlmFragment(res, 'partials/activity', async () => {
+    const app = await col.apps.findOne({ key: req.params.key });
+    return app ? buildActivity(appActivity(app.key), true) : null;
+  }));
+
 adminRouter.get('/apps/:key', async (req, res) => {
   const app = await col.apps.findOne({ key: req.params.key });
   if (!app) return res.status(404).send('Not found');
@@ -526,34 +607,12 @@ adminRouter.get('/apps/:key', async (req, res) => {
     if (d.allowed) access.push({ email: u.email });
   }
   // Usage: power users + an activity heatmap (users active per day).
-  const now = Date.now();
-  const heatSince = heatmapSinceDay(now, config.usageHeatmapDays);
-  const rankSince = heatmapSinceDay(now, DASHBOARD_RANK_DAYS);
-  const [topUsers, dayCounts] = await Promise.all([
+  const [topUsers, activity] = await Promise.all([
     topUsersForApp(app.key, config.usageTopLimit),
-    dailyCountsForApp(app.key, heatSince),
+    buildActivity(appActivity(app.key), false),
   ]);
-  // LLM overlay for this single app (same graceful fallback as the dashboard).
-  let llmWarning = false;
-  let appLlm: LlmDailyRow[] | null = null;
-  if (llmConfigured()) {
-    try {
-      appLlm = await fetchAppLlmDaily(app.key, heatSince);
-    } catch {
-      llmWarning = true;
-    }
-  }
-  const byDay = llmByDay(appLlm);
-  const peak = llmPeaks([byDay]);
-  const heatmap = buildHeatmap(dayCounts, now, config.usageHeatmapDays, {
-    llmByDay: byDay ?? undefined,
-    llmSpendScaleCents: peak.spendCents,
-    llmTokenScale: peak.tokens,
-  });
   res.render('admin/app', {
-    user: req.user, isAdmin: true, app, access,
-    topUsers, heatmap, heatmapDays: config.usageHeatmapDays,
-    llm: llmScore(appLlm, rankSince, heatSince), llmOn: !!byDay, llmWarning, rankDays: DASHBOARD_RANK_DAYS,
+    user: req.user, isAdmin: true, app, access, topUsers, ...activity,
     defaultBaseUrls: config.defaultBaseUrls,
     msg: req.query.msg || null,
   });
