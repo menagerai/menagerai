@@ -38,22 +38,32 @@ interface SpendRow {
   total_tokens: number;
 }
 
-// The caches hold the in-flight PROMISE, not just the resolved value, so the many
-// card fetches a cold dashboard fires concurrently all await one shared pull
-// instead of each paginating the proxy independently. A rejected promise is
-// evicted so a later request retries rather than caching the failure; a resolved
-// one is restamped so a slow pull still gets the full TTL from completion.
-const rowCache = ttlCache<string, Promise<SpendRow[]>>(config.llmCacheTtlMs, 64);
-const aliasCache = ttlCache<string, Promise<Map<string, string>>>(config.llmCacheTtlMs, 4);
+// A pull in flight is shared by PROMISE, so the many card fetches a cold dashboard
+// fires concurrently all await one pull instead of each paginating the proxy
+// independently. In-flight pulls live outside the TTL cache (a pull may outlive
+// the TTL, since LLM_PROXY_TIMEOUT_MS is set independently); only a successful
+// pull enters the cache, stamped at completion so it gets the full TTL. A failed
+// pull is just dropped, so a later request retries rather than caching the failure.
+type PullCache<V> = { done: ReturnType<typeof ttlCache<string, Promise<V>>>; inflight: Map<string, Promise<V>> };
+function pullCache<V>(maxEntries: number): PullCache<V> {
+  return { done: ttlCache<string, Promise<V>>(config.llmCacheTtlMs, maxEntries), inflight: new Map() };
+}
+const rowCache = pullCache<SpendRow[]>(64);
+const aliasCache = pullCache<Map<string, string>>(4);
 
-// Once a cached pull settles: restamp it on success (full TTL from completion),
-// evict it on failure. Only touches the entry if it is still this pull, so a stale
-// pull never clobbers a newer one.
-function settle<V>(cache: { get(k: string): Promise<V> | undefined; set(k: string, v: Promise<V>): void; delete(k: string): void }, key: string, p: Promise<V>): void {
-  p.then(
-    () => { if (cache.get(key) === p) cache.set(key, p); },
-    () => { if (cache.get(key) === p) cache.delete(key); },
-  );
+function sharedPull<V>(c: PullCache<V>, key: string, pull: () => Promise<V>): Promise<V> {
+  const hit = c.done.get(key) ?? c.inflight.get(key);
+  if (hit) return hit;
+  const p = pull();
+  c.inflight.set(key, p);
+  // Only if still this pull: clearLlmCache() may have dropped it meanwhile.
+  const settle = (ok: boolean) => {
+    if (c.inflight.get(key) !== p) return;
+    c.inflight.delete(key);
+    if (ok) c.done.set(key, p);
+  };
+  p.then(() => settle(true), () => settle(false));
+  return p;
 }
 
 // `deadline` (epoch ms) is shared by every page of one pull, so the budget
@@ -88,9 +98,7 @@ function shiftUtcDay(day: string, deltaDays: number): string {
 // One paginated pull of the raw spend logs for [sinceDay, today], cached (as a
 // promise) by window. Bounded by llmMaxPages so a busy proxy can't blow it up.
 function loadRows(sinceDay: string): Promise<SpendRow[]> {
-  const cached = rowCache.get(sinceDay);
-  if (cached) return cached;
-  const p = (async () => {
+  return sharedPull(rowCache, sinceDay, async () => {
     const deadline = Date.now() + config.llmTimeoutMs;
     const startDate = shiftUtcDay(sinceDay, -1);
     const endDate = shiftUtcDay(usageDay(Date.now()), 1);
@@ -104,18 +112,13 @@ function loadRows(sinceDay: string): Promise<SpendRow[]> {
       page++;
     } while (page <= totalPages && page <= config.llmMaxPages);
     return rows;
-  })();
-  rowCache.set(sinceDay, p);
-  settle(rowCache, sinceDay, p);
-  return p;
+  });
 }
 
 // hashed virtual-key token -> key_alias, so rows (which carry only the hash) can
 // be attributed to a portal app_key by alias. Cached as a promise (see above).
 function loadAliasMap(): Promise<Map<string, string>> {
-  const cached = aliasCache.get('keys');
-  if (cached) return cached;
-  const p = (async () => {
+  return sharedPull(aliasCache, 'keys', async () => {
     const deadline = Date.now() + config.llmTimeoutMs;
     const map = new Map<string, string>();
     let page = 1;
@@ -129,10 +132,7 @@ function loadAliasMap(): Promise<Map<string, string>> {
       page++;
     } while (page <= totalPages && page <= config.llmMaxPages);
     return map;
-  })();
-  aliasCache.set('keys', p);
-  settle(aliasCache, 'keys', p);
-  return p;
+  });
 }
 
 // Fold matched rows into per-day spend/token totals, bucketed by the portal tz.
@@ -257,6 +257,8 @@ export function sumWindow(rows: LlmDailyRow[], sinceDay: string): { spend: numbe
 // Test seam: the module-level caches survive across requests by design, but unit
 // tests need a clean slate between cases.
 export function clearLlmCache(): void {
-  rowCache.clear();
-  aliasCache.clear();
+  for (const c of [rowCache, aliasCache]) {
+    c.done.clear();
+    c.inflight.clear();
+  }
 }

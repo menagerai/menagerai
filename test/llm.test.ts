@@ -156,6 +156,15 @@ describe('fetchAppLlmDaily', () => {
     expect(fetchFn.mock.calls.length).toBe(3);
   });
 
+  it('does not cache a failed pull: the next request retries', async () => {
+    global.fetch = vi.fn(async () => {
+      throw new Error('ECONNREFUSED');
+    }) as unknown as typeof fetch;
+    await expect(fetchAppLlmDaily('vividimage', SINCE)).rejects.toBeInstanceOf(LlmProxyError);
+    installFetch();
+    expect(await fetchAppLlmDaily('vividimage', SINCE)).not.toBeNull();
+  });
+
   it('wraps a transport failure in LlmProxyError', async () => {
     global.fetch = vi.fn(async () => {
       throw new Error('ECONNREFUSED');
@@ -206,6 +215,37 @@ describe('pull deadline and cache lifetime', () => {
     await vi.advanceTimersByTimeAsync(50_000); // 70s after start, 50s after completion
     await fetchAppLlmDaily('pipeline', SINCE);
     expect(fetchFn.mock.calls.length).toBe(calls); // still cached
+  });
+
+  // A pull may outlive the cache TTL (LLM_PROXY_TIMEOUT_MS is set independently
+  // of LLM_PROXY_CACHE_TTL_MS). Here: 70s pull vs the 60s TTL.
+  describe('when the pull outlives the cache TTL', () => {
+    beforeEach(() => { cfg.config.llmTimeoutMs = 90_000; });
+    afterEach(() => { cfg.config.llmTimeoutMs = 30_000; });
+
+    it('joins the in-flight pull instead of starting a duplicate', async () => {
+      const fetchFn = installSlowFetch(70_000, 1);
+      const first = fetchAppLlmDaily('vividimage', SINCE);
+      await vi.advanceTimersByTimeAsync(65_000); // past the TTL, pull still running
+      const calls = fetchFn.mock.calls.length;
+      const second = fetchAppLlmDaily('pipeline', SINCE);
+      expect(fetchFn.mock.calls.length).toBe(calls); // no second pull
+      await vi.advanceTimersByTimeAsync(75_000); // drain
+      await Promise.all([first, second]);
+    });
+
+    it('still caches the result for the full TTL from completion', async () => {
+      const fetchFn = installSlowFetch(70_000, 1);
+      const p = fetchAppLlmDaily('vividimage', SINCE);
+      await vi.advanceTimersByTimeAsync(70_000);
+      await p;
+      const calls = fetchFn.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(30_000); // 100s after start, 30s after completion
+      const q = fetchAppLlmDaily('pipeline', SINCE);
+      expect(fetchFn.mock.calls.length).toBe(calls); // served from cache
+      await vi.advanceTimersByTimeAsync(75_000); // drain
+      await q;
+    });
   });
 });
 
