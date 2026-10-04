@@ -186,9 +186,18 @@ Internals:
   `/spend/logs/v2` pull + one `/key/list`, regardless of card count.
 - **Caching:** reuse the existing `ttlCache` helper (`src/ttl-cache.ts`) — do not
   hand-roll a `Map`.
-- **Timeout:** 5 s `AbortController`; on timeout/non-2xx throw a typed
-  `LlmProxyError`. Callers catch it, set an inline warning flag, render
-  activity-only. Next load retries.
+- **Timeout:** one total deadline per paginated pull (`LLM_PROXY_TIMEOUT_MS`,
+  default 30 s) enforced by `AbortController` on each page; on timeout/non-2xx
+  throw a typed `LlmProxyError`. Callers catch it, set an inline warning flag,
+  render activity-only. Next load retries. The cache entry is restamped when the
+  pull resolves, so a slow pull still gets the full TTL.
+- **Lazy loading:** no page blocks on the proxy. The dashboard and the app/user
+  detail pages render activity-only (no proxy calls) and mark the LLM-bearing block
+  with `data-llm-src`; one loader in `partials/foot` fetches that fragment route
+  (`/admin/dashboard/llm`, `/admin/apps/:key/llm`, `/admin/users/:id/llm`) and
+  swaps the LLM-enriched block in (re-ranked, for the dashboard). Shared pieces:
+  `sendLlmFragment` / `buildActivity` (routes), `partials/activity`,
+  `partials/llm-status` and the LLM rows in `partials/score-table` (views).
 - **Scaling note:** the row pull is bounded by `LLM_PROXY_MAX_PAGES`; if a busy
   proxy exceeds it, per-app can switch to the `/user/daily/activity` fast-path
   (UTC-day buckets) — documented, not built now (current volume is trivial).

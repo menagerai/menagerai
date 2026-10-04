@@ -1,0 +1,11 @@
+<%# The LLM line above an LLM-bearing block: the "unavailable" warning when the
+    proxy pull failed, or — while the block is still activity-only and its
+    fragment (llmSrc) loads in the background — a spinner. The loader in
+    partials/foot turns the spinner into the warning (data-failed) if the
+    fragment can't be fetched. %>
+<% var _warn = '⚠ ' + t('llm.timeout', { provider: 'LiteLLM' }); %>
+<% if (typeof llmWarning !== 'undefined' && llmWarning) { %>
+  <p class="muted"><%= _warn %></p>
+<% } else if (typeof llmSrc !== 'undefined' && llmSrc) { %>
+  <p class="muted llm-status" role="status" aria-live="polite" data-failed="<%= _warn %>"><span class="spinner"></span><span><%= t('llm.loading', { provider: 'LiteLLM' }) %></span></p>
+<% } %>

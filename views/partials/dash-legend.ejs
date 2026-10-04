@@ -1,0 +1,13 @@
+<%# Dashboard section legend: tri-metric when any card in the section has LLM
+    data (llmOn), else the familiar green activity ramp. %>
+<div class="dash-legend hm-legend muted">
+  <% if (llmOn) { %>
+    <span class="sw"></span> <%= t('llm.legendSquare') %>
+    · <span class="sw sw-red"></span> <%= t('llm.legendSpend') %>
+    · <span class="sw sw-blu"></span> <%= t('llm.legendTokens') %>
+  <% } else { %>
+    <%= t('heatmap.less') %>
+    <span class="hm-cell"></span><span class="hm-cell on" style="--i:0"></span><span class="hm-cell on" style="--i:33"></span><span class="hm-cell on" style="--i:66"></span><span class="hm-cell on" style="--i:100"></span>
+    <%= t('heatmap.more', { days: heatmapDays }) %>
+  <% } %>
+</div>

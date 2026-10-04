@@ -32,16 +32,19 @@ const h = vi.hoisted(() => ({
   userInsertOne: vi.fn(),
   ruleInsertOne: vi.fn(),
   ruleFind: vi.fn(),
+  userFind: vi.fn(),
+  roleFind: vi.fn(),
+  appFind: vi.fn(),
 }));
 
 const SUPERADMIN = 'admin@example.com';
 
 vi.mock('../src/db', () => ({
   col: {
-    users: { findOne: h.findOne, insertOne: h.userInsertOne, updateOne: h.updateOne, deleteOne: h.userDeleteOne, updateMany: h.userUpdateMany },
+    users: { findOne: h.findOne, find: h.userFind, insertOne: h.userInsertOne, updateOne: h.updateOne, deleteOne: h.userDeleteOne, updateMany: h.userUpdateMany },
     emailRules: { findOne: h.ruleFindOne, find: h.ruleFind, insertOne: h.ruleInsertOne, deleteOne: h.ruleDeleteOne, updateOne: h.ruleUpdateOne },
-    roles: { findOne: h.roleFindOne, deleteOne: h.roleDeleteOne, updateOne: h.roleUpdateOne, updateMany: h.roleUpdateMany },
-    apps: { findOne: h.appFindOne, deleteOne: h.appDeleteOne, updateOne: h.appUpdateOne },
+    roles: { findOne: h.roleFindOne, find: h.roleFind, deleteOne: h.roleDeleteOne, updateOne: h.roleUpdateOne, updateMany: h.roleUpdateMany },
+    apps: { findOne: h.appFindOne, find: h.appFind, deleteOne: h.appDeleteOne, updateOne: h.appUpdateOne },
     usageDaily: { deleteMany: h.usageDeleteMany, updateMany: h.usageUpdateMany },
   },
 }));
@@ -72,10 +75,21 @@ vi.mock('../src/idp', () => ({
   }),
 }));
 vi.mock('../src/idp/config', () => ({ managementConfigured: h.managementConfigured }));
-vi.mock('../src/config', () => ({ config: { superadminEmail: 'admin@example.com', usageHeatmapDays: 365, dashboardTopLimit: 6 } }));
+vi.mock('../src/config', () => ({ config: { superadminEmail: 'admin@example.com', usageHeatmapDays: 365, dashboardTopLimit: 6, usageTopLimit: 10, defaultBaseUrls: [] } }));
 // Keep the REAL matchEmail (the import route uses it); override only emailAllowed.
 vi.mock('../src/rules', async (orig) => ({ ...(await orig<Record<string, unknown>>()), emailAllowed: vi.fn(async () => true) }));
 vi.mock('../src/audit', () => ({ audit: vi.fn() }));
+// LLM seam: off by default (matches the bare config mock); dashboard tests flip
+// llmConfigured and check which fetchers each route calls.
+const llm = vi.hoisted(() => ({
+  llmConfigured: vi.fn(() => false),
+  llmUserConfigured: vi.fn(() => false),
+  fetchAllAppLlmTotals: vi.fn(async () => new Map()),
+  fetchAllUserLlmTotals: vi.fn(async () => new Map()),
+  fetchAppLlmDaily: vi.fn(async () => null),
+  fetchUserLlmDaily: vi.fn(async () => null),
+}));
+vi.mock('../src/llm', async (orig) => ({ ...(await orig<Record<string, unknown>>()), ...llm }));
 
 import { adminRouter } from '../src/routes/admin';
 import { i18n } from '../src/i18n'; // real (not mocked) — needed so views render with t()
@@ -87,6 +101,24 @@ function appAs(user: unknown) {
   app.use(express.urlencoded({ extended: true }));
   app.use((req, _res, next) => {
     (req as { user?: unknown }).user = user;
+    next();
+  });
+  app.use('/admin', adminRouter);
+  return app;
+}
+
+// Real EJS engine + i18n so views (and their partials) actually render; fmtTime
+// stands in for the helper src/app.ts exposes to every template.
+function renderApp(user: unknown) {
+  const app = express();
+  app.set('view engine', 'ejs');
+  app.set('views', path.resolve('views'));
+  app.use(cookieParser());
+  app.use(i18n);
+  app.use(express.urlencoded({ extended: true }));
+  app.use((req, res, next) => {
+    (req as { user?: unknown }).user = user;
+    res.locals.fmtTime = (v: unknown) => (v ? String(v) : '');
     next();
   });
   app.use('/admin', adminRouter);
@@ -116,6 +148,9 @@ beforeEach(() => {
   h.userInsertOne.mockResolvedValue({ insertedId: new ObjectId() });
   h.ruleInsertOne.mockResolvedValue({});
   h.ruleFind.mockReturnValue({ toArray: async () => [] }); // no active rules by default
+  h.userFind.mockReturnValue({ toArray: async () => [] });
+  h.roleFind.mockReturnValue({ sort: () => ({ toArray: async () => [] }) });
+  h.appFind.mockReturnValue({ sort: () => ({ toArray: async () => [] }) });
 });
 
 describe('admin authorization boundary (via router)', () => {
@@ -134,17 +169,55 @@ describe('admin authorization boundary (via router)', () => {
 });
 
 describe('GET /admin/dashboard — render', () => {
-  // Real EJS engine so the new view (and its heatmap partial) actually renders.
-  function renderApp(user: unknown) {
-    const app = express();
-    app.set('view engine', 'ejs');
-    app.set('views', path.resolve('views'));
-    app.use(cookieParser());
-    app.use(i18n);
-    app.use((req, _res, next) => { (req as { user?: unknown }).user = user; next(); });
-    app.use('/admin', adminRouter);
-    return app;
-  }
+  beforeEach(() => {
+    Object.values(llm).forEach((fn) => fn.mockClear());
+    llm.llmConfigured.mockReturnValue(false);
+  });
+
+  it('renders activity-only with no loader when LLM is off', async () => {
+    const res = await request(renderApp(admin)).get('/admin/dashboard').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('data-llm-src="');
+    expect(res.text).not.toContain('class="muted llm-status"');
+  });
+
+  it('renders activity-only immediately and loads LLM data in the background when configured', async () => {
+    llm.llmConfigured.mockReturnValue(true);
+    vi.mocked(topAppsByActivity).mockResolvedValueOnce([{ app_key: 'demo', name: 'Demo', active: 12 }]);
+    const res = await request(renderApp(admin)).get('/admin/dashboard').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('data-llm-src="/admin/dashboard/llm"'); // background loader
+    expect(res.text).toContain('Loading LLM usage from LiteLLM');
+    // The page itself never touches the proxy, and ranks on activity alone.
+    expect(llm.fetchAllAppLlmTotals).not.toHaveBeenCalled();
+    expect(llm.fetchAppLlmDaily).not.toHaveBeenCalled();
+    expect(vi.mocked(topAppsByActivity).mock.calls.at(-1)![2]).toBeUndefined();
+  });
+
+  it('serves the LLM-boosted body fragment at /dashboard/llm', async () => {
+    llm.llmConfigured.mockReturnValue(true);
+    const totals = new Map([['demo', { spend: 4, tokens: 1e6 }]]);
+    llm.fetchAllAppLlmTotals.mockResolvedValueOnce(totals);
+    llm.fetchAppLlmDaily.mockResolvedValueOnce([{ day: '2025-06-01', spend: 4, totalTokens: 1e6 }] as never);
+    vi.mocked(topAppsByActivity).mockResolvedValueOnce([{ app_key: 'demo', name: 'Demo', active: 12 }]);
+    const res = await request(renderApp(admin)).get('/admin/dashboard/llm').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('<html'); // fragment only, no page shell
+    expect(res.text).toContain('class="dash-body"');
+    expect(res.text).toContain('$4.00'); // LLM score row
+    expect(res.text).not.toContain('class="muted llm-status"'); // no loader inside the fragment
+    // Ranked with the LLM boost.
+    expect(vi.mocked(topAppsByActivity).mock.calls.at(-1)![2]).toMatchObject({ totals });
+  });
+
+  it('shows the warning in the fragment when the proxy pull fails', async () => {
+    llm.llmConfigured.mockReturnValue(true);
+    llm.fetchAllAppLlmTotals.mockRejectedValueOnce(new Error('timeout'));
+    const res = await request(renderApp(admin)).get('/admin/dashboard/llm').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('temporarily unavailable');
+    expect(llm.fetchAppLlmDaily).not.toHaveBeenCalled(); // down section skips its overlay
+  });
 
   it('renders Top apps / Top users cards, each linking to its entity', async () => {
     vi.mocked(topAppsByActivity).mockResolvedValueOnce([{ app_key: 'demo', name: 'Demo', active: 12 }]);
@@ -158,6 +231,93 @@ describe('GET /admin/dashboard — render', () => {
     expect(res.text).toContain('>Activity<'); // activity row in the score table
     expect(res.text).toContain('score-table'); // metrics rendered as a small table
     expect(res.text).toContain('>30d</th>'); // rank-window column header
+  });
+});
+
+// Detail pages carry the same LLM overlay as the dashboard cards, so they must not
+// block on a slow (cold) LiteLLM pull either: the page renders activity-only and
+// fetches its activity block, LLM-enriched, from a background fragment route.
+describe('detail pages — lazy LLM overlay', () => {
+  const appDoc = { key: 'demo', name: 'Demo', base_path: '/apps/demo', auth_mode: 'proxy', status: 'active', description: '', proxy_secret: 's', public_paths: [] };
+  const userDoc = { _id: targetId, email: 't@example.com', status: 'active', roles: [], app_overrides: [], department: '', logto_user_id: null, last_login_at: null };
+  const LLM_ROWS = [{ day: '2025-06-01', spend: 4, totalTokens: 1e6 }];
+  const never = () => new Promise<never>(() => {}); // a proxy pull that never answers
+
+  beforeEach(() => {
+    Object.values(llm).forEach((fn) => fn.mockReset());
+    llm.llmConfigured.mockReturnValue(true);
+    llm.llmUserConfigured.mockReturnValue(true);
+    h.appFindOne.mockResolvedValue(appDoc);
+    h.findOne.mockResolvedValue(userDoc);
+  });
+
+  it('app page renders at once with a background loader, without waiting on the proxy', async () => {
+    llm.fetchAppLlmDaily.mockImplementation(never);
+    const res = await request(renderApp(admin)).get('/admin/apps/demo').set('Accept', 'text/html').timeout(2_000);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('data-llm-src="/admin/apps/demo/llm"');
+    expect(res.text).toContain('Loading LLM usage from LiteLLM');
+    expect(llm.fetchAppLlmDaily).not.toHaveBeenCalled();
+  });
+
+  it('user page renders at once with a background loader, without waiting on the proxy', async () => {
+    llm.fetchUserLlmDaily.mockImplementation(never);
+    const res = await request(renderApp(admin)).get(`/admin/users/${targetId}`).set('Accept', 'text/html').timeout(2_000);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain(`data-llm-src="/admin/users/${targetId}/llm"`);
+    expect(llm.fetchUserLlmDaily).not.toHaveBeenCalled();
+  });
+
+  it('serves the LLM-enriched app activity fragment', async () => {
+    llm.fetchAppLlmDaily.mockResolvedValueOnce(LLM_ROWS as never);
+    const res = await request(renderApp(admin)).get('/admin/apps/demo/llm').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('<html');
+    expect(res.text).toContain('$4.00'); // LLM score row
+    expect(res.text).toContain('1.0M');
+    expect(res.text).not.toContain('data-llm-src'); // the swapped-in block is final
+    expect(llm.fetchAppLlmDaily).toHaveBeenCalledWith('demo', expect.any(String));
+  });
+
+  it('serves the LLM-enriched user activity fragment', async () => {
+    llm.fetchUserLlmDaily.mockResolvedValueOnce(LLM_ROWS as never);
+    const res = await request(renderApp(admin)).get(`/admin/users/${targetId}/llm`).set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('<html');
+    expect(res.text).toContain('$4.00');
+    expect(llm.fetchUserLlmDaily).toHaveBeenCalledWith('t@example.com', expect.any(String));
+  });
+
+  it('fragment shows the warning when the proxy pull fails', async () => {
+    llm.fetchAppLlmDaily.mockRejectedValueOnce(new Error('timeout'));
+    const res = await request(renderApp(admin)).get('/admin/apps/demo/llm').set('Accept', 'text/html');
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('temporarily unavailable');
+  });
+
+  it('fragments render in the page locale (cookie / Accept-Language carry over to fetch)', async () => {
+    llm.fetchAppLlmDaily.mockRejectedValueOnce(new Error('timeout'));
+    const viaCookie = await request(renderApp(admin)).get('/admin/apps/demo/llm').set('Cookie', 'menagerai_lang=zh');
+    expect(viaCookie.text).toContain('来自 LiteLLM 的 LLM 使用数据暂时不可用');
+    const page = await request(renderApp(admin)).get('/admin/apps/demo').set('Accept-Language', 'zh-CN,zh;q=0.9');
+    expect(page.text).toContain('正在从 LiteLLM 加载 LLM 使用数据'); // loading line
+  });
+
+  it('fragment 404s for an unknown app or user', async () => {
+    h.appFindOne.mockResolvedValue(null);
+    h.findOne.mockResolvedValue(null);
+    expect((await request(renderApp(admin)).get('/admin/apps/nope/llm')).status).toBe(404);
+    expect((await request(renderApp(admin)).get(`/admin/users/${targetId}/llm`)).status).toBe(404);
+  });
+
+  it('renders no loader when LLM is off', async () => {
+    llm.llmConfigured.mockReturnValue(false);
+    llm.llmUserConfigured.mockReturnValue(false);
+    const a = await request(renderApp(admin)).get('/admin/apps/demo').set('Accept', 'text/html');
+    const u = await request(renderApp(admin)).get(`/admin/users/${targetId}`).set('Accept', 'text/html');
+    expect(a.text).not.toContain('data-llm-src="');
+    expect(u.text).not.toContain('data-llm-src="');
+    expect(a.text).toContain('class="activity-block"'); // still renders the activity block
   });
 });
 
@@ -397,19 +557,8 @@ describe('app rename — cascades all references', () => {
 });
 
 describe('POST /admin/users/import — batch user import', () => {
-  // The success path renders a result view, so this app has the real i18n
-  // middleware + EJS engine wired (unlike appAs, which only handles redirects).
-  function renderApp(user: unknown) {
-    const app = express();
-    app.set('view engine', 'ejs');
-    app.set('views', path.resolve('views'));
-    app.use(cookieParser());
-    app.use(i18n);
-    app.use(express.urlencoded({ extended: true }));
-    app.use((req, _res, next) => { (req as { user?: unknown }).user = user; next(); });
-    app.use('/admin', adminRouter);
-    return app;
-  }
+  // The success path renders a result view, so it uses renderApp (real i18n +
+  // EJS) rather than appAs, which only handles redirects.
   function csvBuf(rows: (string | number)[][]): Buffer {
     return Buffer.from(rows.map((row) => row.map((cell) => String(cell)).join(',')).join('\n'), 'utf8');
   }
