@@ -26,9 +26,14 @@ services:
       SQLITE_PATH: /app/data/menagerai.db
     volumes:
       - menagerai-data:/app/data
-    # The image already defines a /healthz healthcheck. The container reports
-    # healthy even while the configuration screen is showing, so a missing env var
-    # never crash-loops the container — you just fix .env and redeploy.
+    # Compose owns local health; Coolify owns checks for standalone deployments.
+    # The public /healthz route also works while configuration is incomplete.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${PORT:-3000}/healthz >/dev/null || exit 1"]
+      interval: 60s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   menagerai-data:

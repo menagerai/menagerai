@@ -27,10 +27,10 @@
 # The database is in-container and resets DEMO_LIMIT_MINS after the first sign-in.
 
 # Shared healthcheck for the Node services (portal + mock apps): hit /healthz on
-# :3000. 15s startup grace, then every 30s.
+# :3000. 15s startup grace, then every 60s.
 x-node-healthcheck: &node-healthcheck
   test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/healthz',function(r){process.exit(r.statusCode===200?0:1)}).on('error',function(){process.exit(1)})"]
-  interval: 30s
+  interval: 60s
   timeout: 5s
   start_period: 15s
   retries: 3
@@ -50,7 +50,7 @@ services:
     # Traefik's own ping endpoint (internal `ping` entrypoint, see traefik.yml).
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       start_period: 15s
       retries: 3
