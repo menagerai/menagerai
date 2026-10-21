@@ -136,8 +136,11 @@
     /* Launcher app groups: native <details> sections, open by default. The whole
        summary row is the (large, touch-friendly) toggle. */
     .app-group { margin-bottom:18px; }
+    /* Divider closes an open group, before the next title. A collapsed group and
+       the last group get none. */
+    .app-group[open]:not(:last-of-type) { padding-bottom:18px; border-bottom:1px solid var(--line); }
     .app-group > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 2px;
-            margin-bottom:8px; font-size:15px; font-weight:600; border-bottom:1px solid var(--line); user-select:none; }
+            margin-bottom:8px; font-size:15px; font-weight:600; user-select:none; }
     .app-group > summary::-webkit-details-marker { display:none; }
     .app-group > summary::before { content:'▸'; color:var(--muted); transition:transform .15s; }
     .app-group[open] > summary::before { transform:rotate(90deg); }
