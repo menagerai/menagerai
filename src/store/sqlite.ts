@@ -289,6 +289,7 @@ const COLLECTIONS: { name: keyof Collections; table: string; idType: IdType }[] 
   { name: 'users', table: 'users', idType: 'objectId' },
   { name: 'roles', table: 'roles', idType: 'objectId' },
   { name: 'apps', table: 'apps', idType: 'objectId' },
+  { name: 'appGroups', table: 'app_groups', idType: 'objectId' },
   { name: 'emailRules', table: 'email_allow_rules', idType: 'objectId' },
   { name: 'sessions', table: 'sessions', idType: 'string' },
   { name: 'audit', table: 'audit_logs', idType: 'objectId' },

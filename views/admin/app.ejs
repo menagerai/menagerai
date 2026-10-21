@@ -16,6 +16,14 @@
 <form class="card" method="post" action="/admin/apps/<%= app.key %>">
   <p><label><%= t('app.name') %><br /><input name="name" value="<%= app.name %>" style="width:320px" /></label></p>
   <p><label><%= t('app.description') %><br /><input name="description" value="<%= app.description || '' %>" style="width:420px" /></label></p>
+  <p><label><%= t('app.group') %>
+    <%- include('../partials/info', { tip: t('app.groupTip') }) %>
+    <br />
+    <select name="group">
+      <option value=""<%= !app.group ? ' selected' : '' %>><%= t('app.groupNone') %></option>
+      <% groups.forEach(function(g){ %><option value="<%= g.key %>"<%= app.group === g.key ? ' selected' : '' %>><%= g.name %></option><% }) %>
+    </select></label>
+  </p>
   <p><label><%= t('app.status') %>
     <select name="status">
       <% ['active','disabled','planned'].forEach(function(s){ %><option value="<%= s %>" <%= app.status===s?'selected':'' %>><%= t('common.status.' + s) %></option><% }) %>

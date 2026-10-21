@@ -6,6 +6,7 @@
     "adminPanel": "Admin panel"
   },
   "sidebar": {
+    "appGroups": "App groups",
     "admin": "Admin",
     "dashboard": "Dashboard",
     "users": "Users",
@@ -55,6 +56,7 @@
     "status": { "pending": "Pending", "active": "Active", "disabled": "Disabled", "planned": "Planned" }
   },
   "launcher": {
+    "otherGroup": "Other",
     "welcome": "Welcome, {name}",
     "yourApps": "Your apps",
     "noApps": "No apps assigned yet. Contact an administrator for access."
@@ -203,6 +205,7 @@
     "allAppsGranted": "All apps already granted"
   },
   "apps": {
+    "colGroup": "Group",
     "title": "Apps",
     "colKey": "Key",
     "colName": "Name",
@@ -215,6 +218,9 @@
     "footnote": "The app is served at /apps/<key> on every portal host. Registering generates a per-app proxy_secret. Public paths are edited on the app's page. Access is coarse, gate-level only — granting the app lets a user reach it; finer in-app control is the app's own responsibility."
   },
   "app": {
+    "group": "Group",
+    "groupTip": "Files this app under a group (folder) on users' portal page. Display-only: it does not change who can access the app. Manage groups under App groups.",
+    "groupNone": "— None —",
     "back": "← Apps",
     "basePath": "Base path",
     "authMode": "Auth mode",
@@ -244,6 +250,22 @@
     "colLastUsed": "Last used",
     "noUsage": "No usage recorded yet.",
     "activity": "Activity"
+  },
+  "appGroups": {
+    "title": "App groups",
+    "intro": "Groups organize the portal page into collapsible sections. They are display-only: access is still decided by roles and overrides, and users only see groups that contain apps they can open.",
+    "empty": "No app groups yet. Create one below, then pick it on an app's page.",
+    "reorderHint": "Drag ⠿ or use ▲ ▼ to set the order users see. Apps without a group appear last under “Other”.",
+    "dragHandle": "Drag to reorder",
+    "colKey": "Key",
+    "colName": "Name",
+    "keyTip": "Lowercase letters, digits, - and _ (e.g. finance). The key can't be changed later; the name can.",
+    "appCount": "Apps: {n}",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "deleteConfirm": "Delete the group '{name}'? Its apps are not deleted — they move to “Other” on the portal.",
+    "create": "Create group",
+    "footnote": "Assign an app to a group from the app's page (Apps → app → Group)."
   },
   "email": {
     "title": "Email allow rules",
@@ -297,6 +319,14 @@
     "legendTokens": "bar = tokens"
   },
   "flash": {
+    "appGroupCreated": "App group created",
+    "appGroupUpdated": "App group updated",
+    "appGroupDeleted": "App group deleted — its apps are now ungrouped",
+    "appGroupsReordered": "App group order saved",
+    "invalidAppGroupKey": "Invalid group key",
+    "appGroupExists": "App group already exists",
+    "unknownAppGroup": "Unknown app group",
+    "invalidAppGroupOrder": "Invalid group order — list every group exactly once",
     "invalidEmail": "Invalid email",
     "emailNotAllowed": "Email not on the allowlist",
     "userExists": "User already exists",

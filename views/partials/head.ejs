@@ -133,6 +133,28 @@
     .app-tile:hover { border-color:var(--accent); text-decoration:none; }
     .app-tile .role { font-size:12px; color:var(--muted); }
     .app-tile .desc { margin-top:4px; font-size:13px; color:var(--muted); line-height:1.4; }
+    /* Launcher app groups: native <details> sections, open by default. The whole
+       summary row is the (large, touch-friendly) toggle. */
+    .app-group { margin-bottom:18px; }
+    .app-group > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; padding:8px 2px;
+            margin-bottom:8px; font-size:15px; font-weight:600; border-bottom:1px solid var(--line); user-select:none; }
+    .app-group > summary::-webkit-details-marker { display:none; }
+    .app-group > summary::before { content:'▸'; color:var(--muted); transition:transform .15s; }
+    .app-group[open] > summary::before { transform:rotate(90deg); }
+    .app-group > summary .muted { font-weight:400; font-size:13px; }
+    /* Admin: reorderable app-group list. Only the handle starts a drag
+       (touch-action:none there alone), so swiping elsewhere still scrolls. */
+    .group-list { list-style:none; margin:0 0 14px; padding:0; }
+    .group-list li { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#fff; border:1px solid var(--line);
+            border-radius:10px; padding:8px 10px; margin-bottom:8px; }
+    .group-list li.dragging { opacity:.45; }
+    .group-list .drag-handle { touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; font-size:20px;
+            line-height:1; color:var(--muted); padding:8px 6px; }
+    .group-list .drag-handle:active { cursor:grabbing; }
+    .group-list .name-form { display:flex; gap:6px; flex:1 1 220px; min-width:0; }
+    .group-list .name-form input { flex:1 1 auto; min-width:0; }
+    .group-list .meta { color:var(--muted); font-size:13px; white-space:nowrap; }
+    .group-list .acts { display:flex; gap:4px; margin-left:auto; }
     table { width:100%; border-collapse:collapse; background:#fff; }
     th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
     th { font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
@@ -384,6 +406,7 @@
           <a href="/admin/users" class="<%= _ap.indexOf('/admin/users') === 0 ? 'active' : '' %>"><%= t('sidebar.users') %></a>
           <a href="/admin/roles" class="<%= _ap.indexOf('/admin/roles') === 0 ? 'active' : '' %>"><%= t('sidebar.roles') %></a>
           <a href="/admin/apps" class="<%= _ap.indexOf('/admin/apps') === 0 ? 'active' : '' %>"><%= t('sidebar.apps') %></a>
+          <a href="/admin/app-groups" class="<%= _ap.indexOf('/admin/app-groups') === 0 ? 'active' : '' %>"><%= t('sidebar.appGroups') %></a>
           <a href="/admin/email-rules" class="<%= _ap.indexOf('/admin/email-rules') === 0 ? 'active' : '' %>"><%= t('sidebar.emailRules') %></a>
           <a href="/admin/api-keys" class="<%= _ap.indexOf('/admin/api-keys') === 0 ? 'active' : '' %>"><%= t('sidebar.apiKeys') %></a>
           <%# Audit log stays the LAST item — add any new sections ABOVE this line. %>

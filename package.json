@@ -27,6 +27,7 @@
     "mongodb": "^6.10.0",
     "multer": "^2.4.0",
     "openid-client": "^5.7.0",
+    "sortablejs": "^1.15.7",
     "swagger-ui-dist": "^5.32.8",
     "zod": "^3.25.76"
   },

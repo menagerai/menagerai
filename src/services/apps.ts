@@ -45,7 +45,7 @@ export async function createApp(
 // array directly. Accept either.
 export async function updateApp(
   key: string,
-  input: { name?: string; description?: string; status?: string; public_paths?: unknown; default_base_url?: string },
+  input: { name?: string; description?: string; status?: string; public_paths?: unknown; default_base_url?: string; group?: string },
   actorId: string,
 ): Promise<void> {
   const app = await col.apps.findOne({ key });
@@ -68,17 +68,24 @@ export async function updateApp(
   if (defaultBaseUrl && !config.defaultBaseUrls.includes(defaultBaseUrl)) {
     throw new ApiError(400, 'flash.invalidDefaultBaseUrl');
   }
+  // Launcher group (display-only). Changed only when the caller sends it, so an
+  // API partial update that omits `group` keeps the current one; '' ungroups.
+  const group = input.group === undefined ? app.group || '' : String(input.group).trim();
+  if (group && group !== app.group && !(await col.appGroups.findOne({ key: group }))) {
+    throw new ApiError(400, 'flash.unknownAppGroup');
+  }
   const update: Partial<AppDoc> = {
     name: String(input.name || app.name),
     description: String(input.description || ''),
     status,
     public_paths: pathsV.value,
     default_base_url: defaultBaseUrl,
+    group,
     updated_at: new Date(),
   };
   await col.apps.updateOne({ key: app.key }, { $set: update });
   evictAll();
-  await audit({ actor_user_id: actorId, action: 'app.update', target_type: 'app', target_id: app.key, before: { public_paths: app.public_paths, status: app.status }, after: update });
+  await audit({ actor_user_id: actorId, action: 'app.update', target_type: 'app', target_id: app.key, before: { public_paths: app.public_paths, status: app.status, group: app.group || '' }, after: update });
 }
 
 export async function renameApp(key: string, newKeyInput: string, actorId: string): Promise<{ key: string; rolesUpdated: number; usersUpdated: number }> {

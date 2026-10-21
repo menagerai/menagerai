@@ -30,7 +30,20 @@ const appDoc = {
 // route supplies. Catches template typos and undefined-variable references that
 // would otherwise only surface on a live page hit.
 const cases: [string, Record<string, unknown>][] = [
-  ['launcher.ejs', { user, isAdmin: false, apps: [{ key: 'demo', name: 'Demo', url: '/apps/demo' }] }],
+  // Flat launcher (no groups in use): one untitled section.
+  ['launcher.ejs', { user, isAdmin: false, sections: [{ key: '', name: null, apps: [{ key: 'demo', name: 'Demo', url: '/apps/demo' }] }] }],
+  // Grouped launcher: named groups + the trailing "Other" section.
+  [
+    'launcher.ejs',
+    {
+      user,
+      isAdmin: false,
+      sections: [
+        { key: 'fin', name: 'Finance', apps: [{ key: 'ledger', name: 'Ledger', description: 'Books', url: '/apps/ledger' }] },
+        { key: '_other', name: null, apps: [{ key: 'demo', name: 'Demo', url: '/apps/demo' }] },
+      ],
+    },
+  ],
   // Demo persona picker (bare page, no session yet) + the idle demo banner.
   [
     'demo-login.ejs',
@@ -44,7 +57,7 @@ const cases: [string, Record<string, unknown>][] = [
     },
   ],
   // Armed demo banner (countdown branch) + GA tag injection on the launcher.
-  ['launcher.ejs', { user, isAdmin: false, apps: [], demoMode: true, demoResetAt: 1893456000000, gaId: 'G-TEST12345' }],
+  ['launcher.ejs', { user, isAdmin: false, sections: [], demoMode: true, demoResetAt: 1893456000000, gaId: 'G-TEST12345' }],
   ['no-access.ejs', { user: null, app: 'demo', reason: null }],
   ['no-access.ejs', { user, app: null, reason: 'not_provisioned' }],
   ['admin/users.ejs', { user, isAdmin: true, users: [], q: '', managementConfigured: false, msg: null }],
@@ -89,8 +102,11 @@ const cases: [string, Record<string, unknown>][] = [
   ['admin/role.ejs', { user, isAdmin: true, role: { key: 'system_admin', name: 'Admin', grants: [] }, availableApps: [appDoc], protectedRole: 'system_admin', msg: null }],
   // role where every app is already granted: the add-grant picker is disabled
   ['admin/role.ejs', { user, isAdmin: true, role: { key: 'full', name: 'Full', grants: [{ app: 'demo' }] }, availableApps: [], protectedRole: 'system_admin', msg: null }],
-  ['admin/apps.ejs', { user, isAdmin: true, apps: [appDoc], msg: null }],
-  ['admin/app.ejs', { user, isAdmin: true, app: appDoc, access: [], topUsers: [{ user_id: 'u1', email: 't@x.com', days: 2, last: new Date() }], heatmap: { weeks: [[{ day: '2026-06-23', count: 2, level: 2 }]], max: 2 }, ...activity(), defaultBaseUrls: ['app.example.com', 'intra.example.com'], msg: null }],
+  ['admin/apps.ejs', { user, isAdmin: true, apps: [appDoc, { ...appDoc, key: 'ledger', name: 'Ledger', group: 'fin' }], groupNames: { fin: 'Finance' }, msg: null }],
+  // App Groups: populated list and the empty state.
+  ['admin/app-groups.ejs', { user, isAdmin: true, groups: [{ key: 'fin', name: 'Finance', position: 0, appCount: 2 }, { key: 'eng', name: 'Engineering', position: 1, appCount: 0 }], msg: null }],
+  ['admin/app-groups.ejs', { user, isAdmin: true, groups: [], msg: null }],
+  ['admin/app.ejs', { user, isAdmin: true, app: appDoc, access: [], topUsers: [{ user_id: 'u1', email: 't@x.com', days: 2, last: new Date() }], heatmap: { weeks: [[{ day: '2026-06-23', count: 2, level: 2 }]], max: 2 }, ...activity(), defaultBaseUrls: ['app.example.com', 'intra.example.com'], groups: [{ key: 'fin', name: 'Finance', position: 0 }], msg: null }],
   ['admin/email-rules.ejs', { user, isAdmin: true, rules: [{ _id: 'r1', type: 'domain', pattern: 'example.com', status: 'active', description: '' }], msg: null }],
   ['admin/audit.ejs', { user, isAdmin: true, logs: [] }],
   // Profile (self-service sessions): current + other + a legacy doc missing
@@ -146,7 +162,7 @@ describe('view templates render without throwing', () => {
   });
 
   it.each(['en', 'zh', 'hi'])('marks %s pages with the active document language', async (lang) => {
-    const html = await render('launcher.ejs', { user, isAdmin: false, apps: [], lang });
+    const html = await render('launcher.ejs', { user, isAdmin: false, sections: [], lang });
     expect(html).toContain(`<html lang="${lang}">`);
   });
 
@@ -157,7 +173,7 @@ describe('view templates render without throwing', () => {
     expect(adminPage).toContain('id="navToggle"');
 
     // Admin on the portal launcher: sidebar present too
-    const adminLauncher = await render('launcher.ejs', { user, isAdmin: true, apps: [] });
+    const adminLauncher = await render('launcher.ejs', { user, isAdmin: true, sections: [] });
     expect(adminLauncher).toContain('class="sidebar"');
 
     // Admin on the profile page: sidebar present, and the empty-sessions branch renders
@@ -166,7 +182,7 @@ describe('view templates render without throwing', () => {
     expect(adminProfile).toContain(translate('en', 'profile.empty'));
 
     // Non-admin on the launcher: no sidebar, no admin panel button
-    const plainLauncher = await render('launcher.ejs', { user, isAdmin: false, apps: [] });
+    const plainLauncher = await render('launcher.ejs', { user, isAdmin: false, sections: [] });
     expect(plainLauncher).not.toContain('class="sidebar"');
     expect(plainLauncher).not.toContain('id="navToggle"');
   });

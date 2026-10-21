@@ -120,6 +120,11 @@ Your apps:
 - Sales Dashboard
 ```
 
+Admins can file apps into **app groups** (one group per app) so a long launcher
+renders as collapsible, admin-ordered sections, with ungrouped apps last under
+"Other". Groups are display-only: the launcher filters by access first, then
+groups, and empty groups are hidden — a group never reveals an app.
+
 Admin users additionally see:
 
 ```text
