@@ -65,6 +65,20 @@ export interface AppDoc {
   description?: string;
   public_paths: PublicPath[];
   proxy_secret: string;
+  // Key of the AppGroup this app is filed under on the portal launcher, or ''/
+  // missing for ungrouped. Display-only: never read by the access decision.
+  group?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// A display-only folder for the portal launcher. Apps point at it by key
+// (AppDoc.group); `position` is the admin-controlled order (ascending).
+export interface AppGroup {
+  _id?: ObjectId;
+  key: string; // unique, immutable
+  name: string;
+  position: number;
   created_at: Date;
   updated_at: Date;
 }

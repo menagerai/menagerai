@@ -3,6 +3,7 @@ import { User, ApiKey } from '../types';
 import * as users from '../services/users';
 import * as roles from '../services/roles';
 import * as apps from '../services/apps';
+import * as appGroups from '../services/app-groups';
 import * as rules from '../services/emailRules';
 
 // The single source of truth for the programmatic admin API. Each entry both
@@ -165,6 +166,7 @@ export const routes: RouteDef[] = [
       status: z.enum(['active', 'disabled', 'planned']).optional(),
       public_paths: z.array(z.object({ method: z.string(), pattern: z.string() })).optional(),
       default_base_url: z.string().optional(),
+      group: z.string().optional().openapi({ description: "App group key for the portal launcher ('' = ungrouped). Display-only; omit to keep the current group." }),
     }),
     handler: async (ctx) => { await apps.updateApp(ctx.params.key, ctx.body as never, actor(ctx)); return { ok: true }; },
   },
@@ -182,6 +184,30 @@ export const routes: RouteDef[] = [
     method: 'post', path: '/apps/:key/regenerate-secret', tag: 'Apps', summary: 'Rotate the proxy secret',
     params: KeyParam,
     handler: (ctx) => apps.regenerateSecret(ctx.params.key, actor(ctx)),
+  },
+
+  // ---- App groups (display-only launcher folders) ----
+  { method: 'get', path: '/app-groups', tag: 'App groups', summary: 'List app groups in launcher order', handler: () => appGroups.listGroups() },
+  {
+    method: 'post', path: '/app-groups', tag: 'App groups', summary: 'Create an app group (appended last)',
+    body: z.object({ key: z.string(), name: z.string().optional() }),
+    handler: (ctx) => appGroups.createGroup(ctx.body as never, actor(ctx)),
+  },
+  {
+    // Listed before '/app-groups/:key' so it wins the match ('reorder' is a reserved group key).
+    method: 'post', path: '/app-groups/reorder', tag: 'App groups', summary: 'Set the launcher order (every group key exactly once)',
+    body: z.object({ keys: z.array(z.string()) }),
+    handler: async (ctx) => { await appGroups.reorderGroups((ctx.body as { keys: string[] }).keys, actor(ctx)); return { ok: true }; },
+  },
+  {
+    method: 'post', path: '/app-groups/:key', tag: 'App groups', summary: 'Rename an app group (display name only)',
+    params: KeyParam, body: z.object({ name: z.string() }),
+    handler: async (ctx) => { await appGroups.editGroup(ctx.params.key, ctx.body as never, actor(ctx)); return { ok: true }; },
+  },
+  {
+    method: 'post', path: '/app-groups/:key/delete', tag: 'App groups', summary: 'Delete an app group (its apps become ungrouped)',
+    params: KeyParam,
+    handler: (ctx) => appGroups.deleteGroup(ctx.params.key, actor(ctx)),
   },
 
   // ---- Email allow rules ----

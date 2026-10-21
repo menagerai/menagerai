@@ -8,6 +8,8 @@ import { LANG_COOKIE, pickLang } from '../i18n';
 import { requireSession } from '../middleware/auth';
 import { clearSessionCookie, destroySession, revokeSession } from '../sessions';
 import { describeUserAgent } from '../util';
+import { listGroups } from '../services/app-groups';
+import { AppGroup } from '../types';
 
 export const portalRouter = Router();
 
@@ -35,11 +37,37 @@ portalRouter.get('/set-lang', (req, res) => {
   res.redirect(back);
 });
 
-// App launcher — shows only the apps the signed-in user can access.
+type Tile = { key: string; name: string; description: string; url: string; group: string };
+// name is null for the untitled flat section and the '_other' section (the view
+// labels the latter in the viewer's language).
+type Section = { key: string; name: string | null; apps: Tile[] };
+
+// Arrange the user's (already permission-filtered) tiles into launcher sections:
+// groups in admin order, skipping any with no visible app, then ungrouped apps
+// (incl. ones whose group no longer exists) under "Other". When no visible app
+// is grouped, a single untitled section keeps the plain flat grid.
+export function launcherSections(tiles: Tile[], groups: AppGroup[]): Section[] {
+  if (tiles.length === 0) return [];
+  const known = new Set(groups.map((g) => g.key));
+  const sections: Section[] = groups
+    .map((g) => ({ key: g.key, name: g.name, apps: tiles.filter((t) => t.group === g.key) }))
+    .filter((s) => s.apps.length > 0);
+  const rest = tiles.filter((t) => !known.has(t.group));
+  if (sections.length === 0) return [{ key: '', name: null, apps: rest }];
+  if (rest.length) sections.push({ key: '_other', name: null, apps: rest });
+  return sections;
+}
+
+// App launcher — shows only the apps the signed-in user can access, grouped by
+// app group. Groups are display-only: filtering happens first, per app, exactly
+// as before, so a group can never surface an app the user can't reach.
 portalRouter.get('/', requireSession, async (req, res) => {
   const user = req.user!;
-  const apps = await col.apps.find({ status: 'active' }).sort({ name: 1 }).toArray();
-  const accessible: { key: string; name: string; description: string; url: string }[] = [];
+  const [apps, groups] = await Promise.all([
+    col.apps.find({ status: 'active' }).sort({ name: 1 }).toArray(),
+    listGroups(),
+  ]);
+  const accessible: Tile[] = [];
   for (const app of apps) {
     const d = await decide(user, app.key);
     if (d.allowed) {
@@ -53,12 +81,13 @@ portalRouter.get('/', requireSession, async (req, res) => {
         url: app.default_base_url
           ? `https://${app.default_base_url}${app.base_path || `/apps/${app.key}`}`
           : `/apps/${app.key}`,
+        group: app.group || '',
       });
     }
   }
   res.render('launcher', {
     user,
-    apps: accessible,
+    sections: launcherSections(accessible, groups),
     isAdmin: user.roles?.includes('system_admin'),
   });
 });

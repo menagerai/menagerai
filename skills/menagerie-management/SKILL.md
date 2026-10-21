@@ -171,7 +171,19 @@ All paths are relative to `/api/admin`.
 | POST | `/apps/{key}/delete` | Delete an app |
 | POST | `/apps/{key}/regenerate-secret` | Rotate its proxy secret |
 
-`public_paths` is an array of `{ "method", "pattern" }` objects. Keep anonymous paths narrow. `default_base_url`, when used, should be the trusted public origin for the application.
+`public_paths` is an array of `{ "method", "pattern" }` objects. Keep anonymous paths narrow. `default_base_url`, when used, should be the trusted public origin for the application. `group` files the app under an app group on the portal launcher (`""` = ungrouped); omit it to leave the current group unchanged.
+
+### App groups
+
+Display-only folders for the portal launcher. They never affect access: users only see groups containing apps they can already open.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/app-groups` | List groups in launcher order |
+| POST | `/app-groups` | Create a group (`{ "key", "name" }`), appended last |
+| POST | `/app-groups/reorder` | Set the order (`{ "keys": [...] }`, every group key exactly once) |
+| POST | `/app-groups/{key}` | Rename a group (`{ "name" }`); the key is immutable |
+| POST | `/app-groups/{key}/delete` | Delete a group; its apps become ungrouped |
 
 ### Email rules and audit
 

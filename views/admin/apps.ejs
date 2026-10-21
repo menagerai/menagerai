@@ -4,12 +4,13 @@
 
 <div class="table-scroll">
 <table>
-  <thead><tr><th><%= t('apps.colKey') %></th><th><%= t('apps.colName') %></th><th><%= t('apps.colStatus') %></th><th><%= t('apps.colPath') %></th><th><%= t('app.defaultUrl') %></th><th></th></tr></thead>
+  <thead><tr><th><%= t('apps.colKey') %></th><th><%= t('apps.colName') %></th><th><%= t('apps.colGroup') %></th><th><%= t('apps.colStatus') %></th><th><%= t('apps.colPath') %></th><th><%= t('app.defaultUrl') %></th><th></th></tr></thead>
   <tbody>
     <% apps.forEach(function(a){ %>
       <tr>
         <td><a href="/admin/apps/<%= a.key %>"><code><%= a.key %></code></a></td>
         <td><%= a.name %></td>
+        <td><%= (a.group && groupNames[a.group]) || '—' %></td>
         <td><%= t('common.status.' + a.status) %></td>
         <td><code><%= a.base_path || ('/apps/' + a.key) %></code></td>
         <td><%= a.default_base_url ? a.default_base_url : '—' %></td>

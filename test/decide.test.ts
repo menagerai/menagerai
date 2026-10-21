@@ -129,3 +129,20 @@ describe('decideFrom — isolation between apps', () => {
     expect(decideFrom(u, app({ key: 'demo' }), [r])).toMatchObject({ allowed: false, reason: 'no_grant' });
   });
 });
+
+describe('decideFrom — app groups are display-only', () => {
+  it('an app’s group never changes the decision', () => {
+    const cases: [User, Role[]][] = [
+      [user({ roles: ['r'] }), [role('r', [{ app: 'demo' }])]],
+      [user({ roles: ['r'] }), [role('r', [{ app: 'other' }])]],
+      [user({ app_overrides: [{ app: 'demo', effect: 'deny', created_at: new Date() }] }), []],
+      [user({ app_overrides: [{ app: 'demo', effect: 'allow', created_at: new Date() }] }), []],
+      [user({ status: 'disabled' }), []],
+    ];
+    for (const [u, roles] of cases) {
+      const ungrouped = decideFrom(u, app(), roles);
+      expect(decideFrom(u, app({ group: 'finance' }), roles)).toEqual(ungrouped);
+      expect(decideFrom(u, app({ group: 'demo' }), roles)).toEqual(ungrouped); // group key == app key: still no effect
+    }
+  });
+});

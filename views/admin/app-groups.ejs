@@ -1,0 +1,74 @@
+<%- include('../partials/head', { title: t('appGroups.title'), user, isAdmin }) %>
+
+<h1><%= t('appGroups.title') %></h1>
+<p class="muted"><%= t('appGroups.intro') %></p>
+
+<% if (groups.length === 0) { %>
+  <div class="card"><%= t('appGroups.empty') %></div>
+<% } else { %>
+  <p class="muted"><%= t('appGroups.reorderHint') %></p>
+  <ul class="group-list" id="groupList">
+    <% groups.forEach(function(g, i){ %>
+      <li data-key="<%= g.key %>">
+        <span class="drag-handle" title="<%= t('appGroups.dragHandle') %>" aria-hidden="true">⠿</span>
+        <form class="name-form" method="post" action="/admin/app-groups/<%= g.key %>">
+          <input name="name" value="<%= g.name %>" aria-label="<%= t('appGroups.colName') %> (<%= g.key %>)" />
+          <button><%= t('common.save') %></button>
+        </form>
+        <span class="meta"><code><%= g.key %></code> · <%= t('appGroups.appCount', { n: g.appCount }) %></span>
+        <span class="acts">
+          <form method="post" action="/admin/app-groups/<%= g.key %>/move">
+            <input type="hidden" name="dir" value="up" />
+            <button title="<%= t('appGroups.moveUp') %>" aria-label="<%= t('appGroups.moveUp') %>" <%= i === 0 ? 'disabled' : '' %>>▲</button>
+          </form>
+          <form method="post" action="/admin/app-groups/<%= g.key %>/move">
+            <input type="hidden" name="dir" value="down" />
+            <button title="<%= t('appGroups.moveDown') %>" aria-label="<%= t('appGroups.moveDown') %>" <%= i === groups.length - 1 ? 'disabled' : '' %>>▼</button>
+          </form>
+          <form method="post" action="/admin/app-groups/<%= g.key %>/delete" data-confirm="<%= t('appGroups.deleteConfirm', { name: g.name }) %>">
+            <button class="danger"><%= t('common.delete') %></button>
+          </form>
+        </span>
+      </li>
+    <% }) %>
+  </ul>
+  <%# Drag-to-reorder fills this with the new key order and submits it. %>
+  <form id="reorderForm" method="post" action="/admin/app-groups/reorder" hidden></form>
+  <script src="/admin/vendor/sortable.min.js"></script>
+  <script>
+    (function () {
+      var list = document.getElementById('groupList');
+      var form = document.getElementById('reorderForm');
+      if (!list || !form || !window.Sortable) return; // ▲▼ still work without it
+      Sortable.create(list, {
+        handle: '.drag-handle', // only the handle drags; the rest of the row scrolls normally on touch
+        delay: 150, delayOnTouchOnly: true, // a brief hold on touch, so a swipe is never a drag
+        animation: 150, dataIdAttr: 'data-key', ghostClass: 'dragging',
+        onEnd: function (e) {
+          if (e.oldIndex === e.newIndex) return;
+          form.textContent = '';
+          this.toArray().forEach(function (k) {
+            var input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'keys'; input.value = k;
+            form.appendChild(input);
+          });
+          // requestSubmit fires the submit event, so the page's loading indicator shows.
+          if (form.requestSubmit) form.requestSubmit(); else form.submit();
+        },
+      });
+    })();
+  </script>
+<% } %>
+
+<h2><%= t('appGroups.create') %></h2>
+<form class="card row" method="post" action="/admin/app-groups">
+  <label><%= t('appGroups.colKey') %>
+    <%- include('../partials/info', { tip: t('appGroups.keyTip') }) %>
+    <input name="key" placeholder="finance" required pattern="[a-z0-9][a-z0-9_-]{0,63}" title="<%= t('appGroups.keyTip') %>" />
+  </label>
+  <input name="name" placeholder="<%= t('common.displayNamePlaceholder') %>" />
+  <button class="primary"><%= t('common.create') %></button>
+</form>
+<p class="muted"><%= t('appGroups.footnote') %></p>
+
+<%- include('../partials/foot') %>

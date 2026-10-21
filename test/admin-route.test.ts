@@ -46,6 +46,8 @@ vi.mock('../src/db', () => ({
     roles: { findOne: h.roleFindOne, find: h.roleFind, deleteOne: h.roleDeleteOne, updateOne: h.roleUpdateOne, updateMany: h.roleUpdateMany },
     apps: { findOne: h.appFindOne, find: h.appFind, deleteOne: h.appDeleteOne, updateOne: h.appUpdateOne },
     usageDaily: { deleteMany: h.usageDeleteMany, updateMany: h.usageUpdateMany },
+    // App pages list the (display-only) app groups for the group picker.
+    appGroups: { find: () => ({ sort: () => ({ toArray: async () => [] }) }), findOne: async () => null },
   },
 }));
 vi.mock('../src/usage', () => ({

@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { ApiKey, AppDoc, AuditLog, EmailAllowRule, Role, SessionDoc, UsageDaily, User } from '../types';
+import { ApiKey, AppDoc, AppGroup, AuditLog, EmailAllowRule, Role, SessionDoc, UsageDaily, User } from '../types';
 import { Filter, UpdateDoc } from './mongoql';
 
 // The narrow slice of the MongoDB collection API the app actually uses. Both the
@@ -54,6 +54,7 @@ export interface Collections {
   users: ICollection<User>;
   roles: ICollection<Role>;
   apps: ICollection<AppDoc>;
+  appGroups: ICollection<AppGroup>;
   emailRules: ICollection<EmailAllowRule>;
   sessions: ICollection<SessionDoc>;
   audit: ICollection<AuditLog>;

@@ -6,6 +6,7 @@
     "adminPanel": "管理面板"
   },
   "sidebar": {
+    "appGroups": "应用分组",
     "admin": "管理",
     "dashboard": "数据面板",
     "users": "用户",
@@ -55,6 +56,7 @@
     "status": { "pending": "待激活", "active": "正常", "disabled": "停用", "planned": "计划中" }
   },
   "launcher": {
+    "otherGroup": "其他",
     "welcome": "欢迎，{name}",
     "yourApps": "你的应用",
     "noApps": "尚未分配任何应用。请联系管理员获取访问权限。"
@@ -203,6 +205,7 @@
     "allAppsGranted": "已授权全部应用"
   },
   "apps": {
+    "colGroup": "分组",
     "title": "应用",
     "colKey": "标识",
     "colName": "名称",
@@ -215,6 +218,9 @@
     "footnote": "该应用在每个门户主机上以 /apps/<key> 提供服务。注册会生成每个应用独立的 proxy_secret。公共路径在应用页面中编辑。访问为门禁级——授权该应用即可让用户进入；更细的应用内控制由应用自行负责。"
   },
   "app": {
+    "group": "分组",
+    "groupTip": "将此应用归入用户门户页上的某个分组（文件夹）。仅影响显示，不改变谁能访问该应用。分组在“应用分组”中管理。",
+    "groupNone": "— 无 —",
     "back": "← 应用",
     "basePath": "基础路径",
     "authMode": "认证模式",
@@ -244,6 +250,22 @@
     "colLastUsed": "最近使用",
     "noUsage": "暂无使用记录。",
     "activity": "活跃度"
+  },
+  "appGroups": {
+    "title": "应用分组",
+    "intro": "分组将门户页整理为可折叠的版块。分组仅影响显示：访问权限仍由角色和覆盖规则决定，用户只会看到包含其可打开应用的分组。",
+    "empty": "还没有应用分组。请在下方创建，然后在应用页面中选择。",
+    "reorderHint": "拖动 ⠿ 或使用 ▲ ▼ 设置用户看到的顺序。未分组的应用显示在最后的“其他”中。",
+    "dragHandle": "拖动以排序",
+    "colKey": "标识",
+    "colName": "名称",
+    "keyTip": "小写字母、数字、- 和 _（例如 finance）。标识创建后不可更改，名称可以。",
+    "appCount": "应用：{n}",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "deleteConfirm": "删除分组“{name}”？其中的应用不会被删除，而是移到门户页的“其他”中。",
+    "create": "创建分组",
+    "footnote": "在应用页面中为应用指定分组（应用 → 某应用 → 分组）。"
   },
   "email": {
     "title": "邮箱允许规则",
@@ -297,6 +319,14 @@
     "legendTokens": "条 = tok"
   },
   "flash": {
+    "appGroupCreated": "应用分组已创建",
+    "appGroupUpdated": "应用分组已更新",
+    "appGroupDeleted": "应用分组已删除，其中的应用现为未分组",
+    "appGroupsReordered": "分组顺序已保存",
+    "invalidAppGroupKey": "分组标识无效",
+    "appGroupExists": "应用分组已存在",
+    "unknownAppGroup": "未知的应用分组",
+    "invalidAppGroupOrder": "分组顺序无效：须列出每个分组且仅一次",
     "invalidEmail": "邮箱无效",
     "emailNotAllowed": "邮箱不在允许列表中",
     "userExists": "用户已存在",

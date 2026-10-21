@@ -33,6 +33,7 @@ export async function connect(): Promise<void> {
       users: db.collection('users'),
       roles: db.collection('roles'),
       apps: db.collection('apps'),
+      appGroups: db.collection('app_groups'),
       emailRules: db.collection('email_allow_rules'),
       sessions: db.collection('sessions'),
       audit: db.collection('audit_logs'),
@@ -56,6 +57,7 @@ export async function ensureIndexes(): Promise<void> {
   await col.users.createIndex({ logto_user_id: 1 }, { unique: true, sparse: true });
   await col.roles.createIndex({ key: 1 }, { unique: true });
   await col.apps.createIndex({ key: 1 }, { unique: true });
+  await col.appGroups.createIndex({ key: 1 }, { unique: true });
   await col.emailRules.createIndex({ type: 1, pattern: 1 });
   // Sliding idle expiry: on Mongo the TTL index removes the session when
   // expires_at passes; on SQLite the store sweeps expired rows (TTL is a no-op).

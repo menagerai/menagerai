@@ -15,6 +15,7 @@ import { isSuperadmin, PROTECTED_ROLE } from '../services/common';
 import * as usersSvc from '../services/users';
 import * as rolesSvc from '../services/roles';
 import * as appsSvc from '../services/apps';
+import * as groupsSvc from '../services/app-groups';
 import * as rulesSvc from '../services/emailRules';
 import { createApiKey, listApiKeys, maskedDisplay, revokeApiKey } from '../services/apiKeys';
 import { buildOpenApiDocument } from '../api/openapi';
@@ -577,8 +578,9 @@ adminRouter.post('/roles/:key/delete', async (req, res) => {
 
 // ---- Apps ----
 adminRouter.get('/apps', async (req, res) => {
-  const apps = await col.apps.find().sort({ name: 1 }).toArray();
-  res.render('admin/apps', { user: req.user, isAdmin: true, apps, msg: req.query.msg || null });
+  const [apps, groups] = await Promise.all([col.apps.find().sort({ name: 1 }).toArray(), groupsSvc.listGroups()]);
+  const groupNames = Object.fromEntries(groups.map((g) => [g.key, g.name]));
+  res.render('admin/apps', { user: req.user, isAdmin: true, apps, groupNames, msg: req.query.msg || null });
 });
 
 adminRouter.post('/apps', async (req, res) => {
@@ -607,13 +609,15 @@ adminRouter.get('/apps/:key', async (req, res) => {
     if (d.allowed) access.push({ email: u.email });
   }
   // Usage: power users + an activity heatmap (users active per day).
-  const [topUsers, activity] = await Promise.all([
+  const [topUsers, activity, groups] = await Promise.all([
     topUsersForApp(app.key, config.usageTopLimit),
     buildActivity(appActivity(app.key), false),
+    groupsSvc.listGroups(),
   ]);
   res.render('admin/app', {
     user: req.user, isAdmin: true, app, access, topUsers, ...activity,
     defaultBaseUrls: config.defaultBaseUrls,
+    groups,
     msg: req.query.msg || null,
   });
 });
@@ -623,7 +627,7 @@ adminRouter.post('/apps/:key', async (req, res) => {
   try {
     await appsSvc.updateApp(
       req.params.key,
-      { name: req.body.name, description: req.body.description, status: req.body.status, public_paths: req.body.public_paths, default_base_url: req.body.default_base_url },
+      { name: req.body.name, description: req.body.description, status: req.body.status, public_paths: req.body.public_paths, default_base_url: req.body.default_base_url, group: req.body.group },
       actor(req),
     );
     flash(res, base, 'flash.appUpdated');
@@ -664,6 +668,74 @@ adminRouter.post('/apps/:key/regenerate-secret', async (req, res) => {
     flash(res, base, 'flash.secretRegenerated');
   } catch (err) {
     fail(res, base, err);
+  }
+});
+
+// ---- App groups (display-only launcher folders) ----
+adminRouter.get('/app-groups', async (req, res) => {
+  const [groups, apps] = await Promise.all([groupsSvc.listGroups(), col.apps.find().toArray()]);
+  const counts = new Map<string, number>();
+  for (const a of apps) if (a.group) counts.set(a.group, (counts.get(a.group) || 0) + 1);
+  res.render('admin/app-groups', {
+    user: req.user, isAdmin: true,
+    groups: groups.map((g) => ({ ...g, appCount: counts.get(g.key) || 0 })),
+    msg: req.query.msg || null,
+  });
+});
+
+// SortableJS (drag-to-reorder on the page above), served from node_modules so
+// the admin UI doesn't depend on a public CDN.
+const sortableJs = require.resolve('sortablejs/Sortable.min.js');
+adminRouter.get('/vendor/sortable.min.js', (_req, res) => {
+  res.type('application/javascript').sendFile(sortableJs, { maxAge: '1d' });
+});
+
+adminRouter.post('/app-groups', async (req, res) => {
+  try {
+    await groupsSvc.createGroup({ key: req.body.key, name: req.body.name }, actor(req));
+    flash(res, '/admin/app-groups', 'flash.appGroupCreated');
+  } catch (err) {
+    fail(res, '/admin/app-groups', err);
+  }
+});
+
+// Registered before '/app-groups/:key' ('reorder' is a reserved group key).
+// keys arrives as a repeated form field; a single group posts a scalar.
+adminRouter.post('/app-groups/reorder', async (req, res) => {
+  try {
+    const raw = req.body.keys;
+    const keys = Array.isArray(raw) ? raw.map(String) : raw === undefined ? [] : [String(raw)];
+    await groupsSvc.reorderGroups(keys, actor(req));
+    flash(res, '/admin/app-groups', 'flash.appGroupsReordered');
+  } catch (err) {
+    fail(res, '/admin/app-groups', err);
+  }
+});
+
+adminRouter.post('/app-groups/:key', async (req, res) => {
+  try {
+    await groupsSvc.editGroup(req.params.key, { name: req.body.name }, actor(req));
+    flash(res, '/admin/app-groups', 'flash.appGroupUpdated');
+  } catch (err) {
+    fail(res, '/admin/app-groups', err);
+  }
+});
+
+adminRouter.post('/app-groups/:key/move', async (req, res) => {
+  try {
+    await groupsSvc.moveGroup(req.params.key, req.body.dir, actor(req));
+    flash(res, '/admin/app-groups', 'flash.appGroupsReordered');
+  } catch (err) {
+    fail(res, '/admin/app-groups', err);
+  }
+});
+
+adminRouter.post('/app-groups/:key/delete', async (req, res) => {
+  try {
+    await groupsSvc.deleteGroup(req.params.key, actor(req));
+    flash(res, '/admin/app-groups', 'flash.appGroupDeleted');
+  } catch (err) {
+    fail(res, '/admin/app-groups', err);
   }
 });
 
