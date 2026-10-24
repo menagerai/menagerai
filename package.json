@@ -18,7 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "better-sqlite3": "^11.10.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
@@ -29,7 +29,7 @@
     "openid-client": "^5.7.0",
     "sortablejs": "^1.15.7",
     "swagger-ui-dist": "^5.32.8",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
