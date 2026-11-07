@@ -80,13 +80,14 @@ describe('fetchAppLlmDaily', () => {
     expect(urls.some((u) => u.includes('/key/list'))).toBe(true);
   });
 
-  it('uses size for key-list pagination and page_size for spend logs', async () => {
+  it('uses the supported key-list size limit and preserves spend-log page_size', async () => {
     const fetchFn = installFetch();
     await fetchAppLlmDaily('vividimage', SINCE);
     const urls = fetchFn.mock.calls.map((c) => new URL(String(c[0])));
     const keyUrls = urls.filter((u) => u.pathname === '/key/list');
     expect(keyUrls).toHaveLength(1);
-    expect(keyUrls[0].searchParams.get('size')).toBe('200');
+    // LiteLLM validates size in [1, 100]; size=200 returns HTTP 422.
+    expect(keyUrls[0].searchParams.get('size')).toBe('100');
     expect(keyUrls[0].searchParams.has('page_size')).toBe(false);
     for (const url of urls.filter((u) => u.pathname === '/spend/logs/v2')) {
       expect(url.searchParams.get('page_size')).toBe('1000');

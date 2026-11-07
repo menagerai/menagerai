@@ -124,7 +124,7 @@ function loadAliasMap(): Promise<Map<string, string>> {
     let page = 1;
     let totalPages = 1;
     do {
-      const j = await proxyGet(`/key/list?page=${page}&size=200&return_full_object=true`, deadline);
+      const j = await proxyGet(`/key/list?page=${page}&size=100&return_full_object=true`, deadline);
       for (const k of (j.keys as { token?: string; key_alias?: string }[]) ?? []) {
         if (k.token && k.key_alias) map.set(k.token, k.key_alias);
       }
