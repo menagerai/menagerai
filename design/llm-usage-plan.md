@@ -187,7 +187,11 @@ Internals:
 - **Caching:** reuse the existing `ttlCache` helper (`src/ttl-cache.ts`) — do not
   hand-roll a `Map`.
 - **Timeout:** one total deadline per paginated pull (`LLM_PROXY_TIMEOUT_MS`,
-  default 30 s) enforced by `AbortController` on each page; on timeout/non-2xx
+  default 60 s) enforced by `AbortController` on each page (including body reading);
+  spend logs discover `total_pages` on page 1, then use at most three concurrent
+  workers with that same absolute deadline. Results remain in page order. On
+  failure, stop scheduling new pages and drain started workers before dropping
+  the shared pull; never cache partial results. On timeout/non-2xx,
   throw a typed `LlmProxyError`. Callers catch it, set an inline warning flag,
   render activity-only. Next load retries. The cache entry is restamped when the
   pull resolves, so a slow pull still gets the full TTL.

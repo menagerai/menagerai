@@ -102,16 +102,30 @@ function loadRows(sinceDay: string): Promise<SpendRow[]> {
     const deadline = Date.now() + config.llmTimeoutMs;
     const startDate = shiftUtcDay(sinceDay, -1);
     const endDate = shiftUtcDay(usageDay(Date.now()), 1);
-    const rows: SpendRow[] = [];
-    let page = 1;
-    let totalPages = 1;
-    do {
-      const j = await proxyGet(`/spend/logs/v2?start_date=${startDate}&end_date=${endDate}&page=${page}&page_size=1000`, deadline);
-      for (const r of (j.data as SpendRow[]) ?? []) rows.push(r);
-      totalPages = Number(j.total_pages ?? 1);
-      page++;
-    } while (page <= totalPages && page <= config.llmMaxPages);
-    return rows;
+    const getPage = (page: number) => proxyGet(
+      `/spend/logs/v2?start_date=${startDate}&end_date=${endDate}&page=${page}&page_size=1000`, deadline,
+    );
+    const first = await getPage(1);
+    const pages: SpendRow[][] = [(first.data as SpendRow[]) ?? []];
+    const totalPages = Math.min(Number(first.total_pages ?? 1), config.llmMaxPages);
+    let nextPage = 2;
+    let failure: unknown;
+    const worker = async () => {
+      try {
+        while (!failure && nextPage <= totalPages) {
+          const page = nextPage++;
+          const j = await getPage(page);
+          pages[page - 1] = (j.data as SpendRow[]) ?? [];
+        }
+      } catch (err) {
+        failure ??= err;
+      }
+    };
+    // Await every started worker, even after an error, so the shared pull stays
+    // in flight until all old requests drain. No partial rows enter the cache.
+    await Promise.all(Array.from({ length: Math.min(3, Math.max(0, totalPages - 1)) }, worker));
+    if (failure) throw failure;
+    return pages.flat();
   });
 }
 

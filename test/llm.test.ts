@@ -11,7 +11,7 @@ const cfg = vi.hoisted(() => ({
     llmProxyUserKey: 'end_user',
     llmCacheTtlMs: 60_000,
     llmMaxPages: 50,
-    llmTimeoutMs: 30_000,
+    llmTimeoutMs: 60_000,
   },
 }));
 vi.mock('../src/config', () => cfg);
@@ -188,6 +188,98 @@ describe('fetchAppLlmDaily', () => {
   });
 });
 
+describe('bounded spend-log pagination', () => {
+  function deferredPages(totalPages: number) {
+    const pending = new Map<number, { resolve: (response: Response) => void; reject: (err: Error) => void }>();
+    const started: number[] = [];
+    const fn = vi.fn((url: string) => new Promise<Response>((resolve, reject) => {
+      const page = Number(new URL(url).searchParams.get('page'));
+      started.push(page);
+      pending.set(page, { resolve, reject });
+    }));
+    global.fetch = fn as unknown as typeof fetch;
+    const finish = (page: number) => pending.get(page)!.resolve({
+      ok: true,
+      json: async () => ({ data: [{ ...ROWS[0], end_user: `page-${page}` }], total_pages: totalPages }),
+    } as Response);
+    return { started, pending, finish };
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    cfg.config.llmMaxPages = 50;
+    vi.useRealTimers();
+  });
+
+  it.each([
+    { total: 8, cap: 1, expected: [1] },
+    { total: 8, cap: 3, expected: [1, 2, 3] },
+    { total: 8, cap: 5, expected: [1, 2, 3, 4, 5] },
+    { total: 1, cap: 50, expected: [1] },
+  ])('honours maxPages=$cap with total_pages=$total', async ({ total, cap, expected }) => {
+    cfg.config.llmMaxPages = cap;
+    const pages = deferredPages(total);
+    const pull = fetchAllUserLlmTotals(SINCE, SINCE);
+    for (const page of expected) {
+      expect(pages.started).toContain(page);
+      pages.finish(page);
+      await vi.advanceTimersByTimeAsync(0);
+    }
+    expect([...(await pull).keys()]).toEqual(expected.map((page) => `page-${page}`));
+    expect(pages.started).toEqual(expected);
+  });
+
+  it('stops scheduling on failure and drains started work before allowing a retry', async () => {
+    const pages = deferredPages(8);
+    const pull = fetchAllUserLlmTotals(SINCE, SINCE);
+    let settled = false;
+    const failure = expect(pull).rejects.toThrow('page two failed');
+    void pull.then(() => { settled = true; }, () => { settled = true; });
+    pages.finish(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4]);
+    pages.pending.get(2)!.reject(new Error('page two failed'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    const joined = fetchAllUserLlmTotals(SINCE, SINCE);
+    const joinedFailure = expect(joined).rejects.toThrow('page two failed');
+    expect(pages.started).toEqual([1, 2, 3, 4]);
+    pages.finish(3);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4]); // no page 5 after a failed worker
+    expect(settled).toBe(false);
+    // A second failure must settle too, without hiding the original error.
+    pages.pending.get(4)!.reject(new Error('page four failed'));
+    await Promise.all([failure, joinedFailure]);
+    expect(settled).toBe(true);
+    const retry = deferredPages(1);
+    const retried = fetchAllUserLlmTotals(SINCE, SINCE);
+    expect(retry.started).toEqual([1]); // no partial result was cached
+    retry.finish(1);
+    expect([...(await retried).keys()]).toEqual(['page-1']);
+  });
+
+  it('discovers page count first, overlaps at most three pages, and preserves page order', async () => {
+    const pages = deferredPages(7);
+    const pull = fetchAllUserLlmTotals(SINCE, SINCE);
+    expect(pages.started).toEqual([1]);
+    pages.finish(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4]); // three unresolved requests, not all six
+    pages.finish(4);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4, 5]);
+    pages.finish(3);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4, 5, 6]);
+    pages.finish(6);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(pages.started).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    for (const page of [7, 5, 2]) pages.finish(page);
+    expect([...(await pull).keys()]).toEqual([1, 2, 3, 4, 5, 6, 7].map((page) => `page-${page}`));
+  });
+});
+
 describe('pull deadline and cache lifetime', () => {
   // Every proxy call takes `pageMs` (fake time) and honours the abort signal.
   function installSlowFetch(pageMs: number, totalPages: number) {
@@ -214,11 +306,65 @@ describe('pull deadline and cache lifetime', () => {
   });
 
   it('bounds the whole pagination, not each page', async () => {
-    installSlowFetch(20_000, 2); // page 1 at 20s fits; page 2 would end at 40s > 30s
+    installSlowFetch(40_000, 2); // page 1 at 40s fits; page 2 would end at 80s > 60s
     const p = fetchAppLlmDaily('vividimage', SINCE);
     const settled = expect(p).rejects.toBeInstanceOf(LlmProxyError);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     await settled;
+  });
+
+  it('aborts every concurrent body read at the same total deadline', async () => {
+    const startedAt = Date.now();
+    const aborted: number[] = [];
+    const pages: number[] = [];
+    global.fetch = vi.fn(async (url: string, opts: { signal: AbortSignal }) => {
+      const page = Number(new URL(url).searchParams.get('page'));
+      pages.push(page);
+      // Headers arrive immediately; the deadline must also cover res.json().
+      return {
+        ok: true,
+        json: () => new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve({ data: ROWS, total_pages: 8 }), page === 1 ? 20_000 : 45_000);
+          opts.signal.addEventListener('abort', () => {
+            clearTimeout(timer);
+            aborted.push(Date.now() - startedAt);
+            reject(new Error('body aborted'));
+          });
+        }),
+      } as Response;
+    }) as unknown as typeof fetch;
+    const pull = fetchAllUserLlmTotals(SINCE, SINCE);
+    const failure = expect(pull).rejects.toThrow('body aborted');
+    let settled = false;
+    void pull.then(() => { settled = true; }, () => { settled = true; });
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(pages).toEqual([1, 2, 3, 4]);
+    await vi.advanceTimersByTimeAsync(39_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await failure;
+    expect(aborted).toEqual([60_000, 60_000, 60_000]);
+    expect(pages).toEqual([1, 2, 3, 4]);
+  });
+
+  it('deduplicates a concurrent multi-page pull and expires TTL from completion', async () => {
+    const fetchFn = installSlowFetch(20_000, 4);
+    const first = fetchUserLlmDaily('alice@x.com', SINCE);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    const joined = fetchUserLlmDaily('bob@x.com', SINCE);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await Promise.all([first, joined]); // completes at 40s; TTL runs through 100s
+    await vi.advanceTimersByTimeAsync(59_999);
+    await fetchUserLlmDaily('alice@x.com', SINCE);
+    expect(fetchFn).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1);
+    const refresh = fetchUserLlmDaily('alice@x.com', SINCE);
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+    await vi.advanceTimersByTimeAsync(40_000);
+    await refresh;
+    expect(fetchFn).toHaveBeenCalledTimes(8);
   });
 
   it('starts the cache TTL when the pull completes, not when it starts', async () => {
@@ -236,7 +382,7 @@ describe('pull deadline and cache lifetime', () => {
   // of LLM_PROXY_CACHE_TTL_MS). Here: 70s pull vs the 60s TTL.
   describe('when the pull outlives the cache TTL', () => {
     beforeEach(() => { cfg.config.llmTimeoutMs = 90_000; });
-    afterEach(() => { cfg.config.llmTimeoutMs = 30_000; });
+    afterEach(() => { cfg.config.llmTimeoutMs = 60_000; });
 
     it('joins the in-flight pull instead of starting a duplicate', async () => {
       const fetchFn = installSlowFetch(70_000, 1);
